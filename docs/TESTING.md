@@ -63,7 +63,7 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 2. `invenstory_run_action` from chat ("I sold 1 travel mug").
 3. Analysis: add an LLM credential in n8n → Automations → Set up analysis → Run analysis now ⇒ new session with
    insight + action items; draft item opens the mail app; run item executes.
-4. Push: Automations → Notifications on → run analysis with the app in the background ⇒ notification;
+4. Push: Dashboard → "Turn on notifications" card (shown once) → run analysis with the app in the background ⇒ notification;
    with the app focused ⇒ silent refresh. Failure push: break a test workflow on purpose.
 5. Second device / teammate: log in on another browser → Install reuses everything (same project) → same dashboard
    and chat.

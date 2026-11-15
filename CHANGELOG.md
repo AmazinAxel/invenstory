@@ -2,7 +2,7 @@
 
 ## Unreleased
 - The Notifications and Settings card is gone from the Automations tab, so "Change language model" and "Disconnect
-  n8n" are no longer reachable after setup (the Setup view keeps them as its recovery path). Why: the owner decided
+  n8n" are no longer reachable once setup is done (the Setup view still has them while setup is open). Why: the owner decided
   these controls don't belong in daily use; notifications are now asked for once on the Dashboard (#13) and changed
   in the browser's site settings. To switch model or disconnect today, clear the site's data.
 - Notifications are asked for with a one-time "Turn on notifications" card on the Dashboard; tapping it opens the
