@@ -20,11 +20,18 @@
 
   // Runs inside the tap, so the browser allows its permission popup.
   async function turnOn() {
-    if (!app.install) return;
+    if (!app.install) {
+      error = 'Invenstory is not installed yet.';
+      return;
+    }
     busy = true;
     error = null;
     try {
-      await enablePush(app.mcp, $state.snapshot(app.install));
+      const state = await enablePush(app.mcp, $state.snapshot(app.install));
+      if (state === 'unsupported') {
+        error = 'This browser could not turn on notifications.';
+        return;
+      }
       await done();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
