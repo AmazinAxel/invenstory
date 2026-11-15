@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { nearBottom } from '../lib/scroll.ts';
+  import { nearBottom, nextPinned } from '../lib/scroll.ts';
   import { chat } from '../state/chat.svelte.ts';
   import { chatTurns, visibleText, type ToolCall } from '../state/chat-history.ts';
   import { toolLabel } from '../lib/agent/tools.ts';
@@ -43,8 +43,10 @@
   let composerH = $state(0);
 
   // Follow new content only while the owner is at the bottom; if they scrolled up to read, leave them and offer a jump.
-  // `pinned` changes only on scroll events, never on content growth, so a long chunk can't unpin a following view.
+  // Only the reader scrolling up unpins (see nextPinned): a scroll event arrives a frame late, after the next chunk may
+  // have grown the page, so "not at the bottom" alone is not proof the reader moved.
   let pinned = $state(true);
+  let lastY = 0;
   let unseen = $state(false);
   let prevLen = 0;
   let wasActive = false;
@@ -54,20 +56,28 @@
     const inset = parseFloat(getComputedStyle(end).scrollMarginBottom) || 0;
     return nearBottom(scrollY, innerHeight - inset, scrollY + end.getBoundingClientRect().bottom);
   }
+  // scrollTo the computed position instead of end.scrollIntoView(): iOS WebKit overshoots and corrects by ~47px per
+  // call, which reads as the reader scrolling up and unpinned a following view (issue #2).
   function toBottom() {
-    end?.scrollIntoView({ block: 'end' });
+    if (end) {
+      const inset = parseFloat(getComputedStyle(end).scrollMarginBottom) || 0;
+      scrollTo({ top: Math.max(0, scrollY + end.getBoundingClientRect().bottom - (innerHeight - inset)), behavior: 'instant' });
+    }
+    lastY = scrollY;
     pinned = true;
     unseen = false;
   }
   function onscroll() {
     if (!active) return;
-    pinned = atBottom();
+    pinned = nextPinned(pinned, scrollY, lastY, atBottom());
+    lastY = scrollY;
     if (pinned) unseen = false;
   }
 
   $effect(() => {
     const n = rows.length;
-    void chat.streaming;
+    // Also tracked: the typing line and end-of-turn notices change height without adding a row or a chunk.
+    void [chat.streaming, chat.running, chat.error, chat.ended];
     const grew = n > prevLen;
     prevLen = n;
     const opened = active && !wasActive;
