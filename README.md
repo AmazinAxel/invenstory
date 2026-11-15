@@ -32,7 +32,7 @@ instance:
 6. Planned later: ElevenLabs voice, PCA views.
 
 Full list with impact and suggested fixes: [docs/STATUS.md](docs/STATUS.md).
-The original plan is kept verbatim in [`ultrathink-we-re-trying-to-recursive-hoare.md`](ultrathink-we-re-trying-to-recursive-hoare.md);
+The original plan is kept verbatim in [`docs/PLAN-ORIGINAL.md`](docs/PLAN-ORIGINAL.md);
 [docs/PLAN.md](docs/PLAN.md) is the living copy with the Phase 0 results and re-plan notes.
 
 ## Quick start (development)
@@ -67,7 +67,7 @@ In the app: **1** log in to n8n, **2** add the LLM key (tested with a short call
 | [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) | Every external service and account in use, why, where the secrets live, the live n8n object inventory |
 | [docs/TESTING.md](docs/TESTING.md) | Unit tests, what was verified live and how, the manual end-to-end script |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Working on the code: conventions, how to change core workflows, gate policy, adapters; deploy |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Why things are built the way they are (and where that departs from the plan) |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Why things are built the way they are (and where that departs from the plan); index of the ADRs in [docs/adr/](docs/adr/) |
 | [docs/STATUS.md](docs/STATUS.md) | Verified vs. unverified, known issues, next steps, hand-off notes |
 | [docs/PLAN.md](docs/PLAN.md) | The original implementation plan and its re-plan notes |
 | [CHANGELOG.md](CHANGELOG.md) | Releases and the incident log (bugs found in live testing and their root causes) |

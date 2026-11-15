@@ -1,5 +1,5 @@
 > Living copy of the plan, updated with Phase 0 results and the re-plan. The original, unedited plan is kept at
-> [`/ultrathink-we-re-trying-to-recursive-hoare.md`](../ultrathink-we-re-trying-to-recursive-hoare.md).
+> [`PLAN-ORIGINAL.md`](PLAN-ORIGINAL.md).
 
 # Invenstory — implementation plan
 

@@ -36,7 +36,9 @@ the secret-path `invenstory-api` webhook (data plane), and the LLM provider (cha
 
 ## Recording changes
 Every change gets a why: commit message body explains the reason; user-visible or architectural changes get a
-CHANGELOG entry (with the reason) and, when a design choice is made or reversed, a new entry in docs/DECISIONS.md.
+CHANGELOG entry (with the reason) and, when a design choice is made or reversed, a new ADR: a file
+`docs/adr/NNNN-slug.md` (next number, heading `# D<N>. <title>`) plus the same title as an index line in
+docs/DECISIONS.md. `test/adr.test.ts` fails the release when the two disagree.
 Bugs found in live testing go into the CHANGELOG incident log.
 
 ## Where things are
@@ -51,3 +53,17 @@ Bugs found in live testing go into the CHANGELOG incident log.
 Live n8n checks need either the app (browser login) or `scripts/n8n.ts` with an MCP access token. The LLM key lives
 only in the user's browser, so Claude cannot call the LLM from the terminal: ask the user to run chat scenarios and
 paste errors. docs/TESTING.md has the manual end-to-end script and what is already verified.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on AmazinAxel/invenstory via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` (created lazily) + `docs/adr/`, indexed by docs/DECISIONS.md. See `docs/agents/domain.md`.
