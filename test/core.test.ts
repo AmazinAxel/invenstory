@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { NOTICE, PREPARE_RUN, STOCK, SUMMARY, ANALYSIS_TARGET, signPushCode } from '../src/lib/n8n/core/code.ts';
+import { NOTICE, PREPARE_RUN, STOCK, SUMMARY, ANALYSIS_TARGET, ANALYSIS_FACTS, ANALYSIS_RECORDS, signPushCode } from '../src/lib/n8n/core/code.ts';
 import { ex, lit } from '../src/lib/n8n/core/sdk.ts';
 import { apiWorkflow } from '../src/lib/n8n/core/templates.ts';
 import { TABLE_NAMES, type TableIds } from '../src/lib/n8n/core/schema.ts';
@@ -118,6 +118,29 @@ describe('STOCK / NOTICE / PREPARE_RUN / ANALYSIS_TARGET', () => {
     const run = load(ANALYSIS_TARGET);
     expect(run({ config: [{}] }).ok).toBe(false);
     expect(run({ config: [row({ key: 'analyze_workflow_id', value: 'old' }), row({ key: 'analyze_workflow_id', value: 'new' })] })).toEqual({ ok: true, workflow_id: 'new' });
+  });
+});
+
+describe('analysis code', () => {
+  test('facts include per-product performance with margin', () => {
+    const run = load(ANALYSIS_FACTS);
+    const products = [row({ sku: 'A', name: 'Alpha', quantity: 4, unit_cost: 6, unit_price: 10, currency: 'USD' })];
+    const sales = [row({ sku: 'A', quantity: 2, revenue: 20, currency: 'USD', sold_at: '2026-11-14T10:00:00Z' })];
+    const out = run({ products, sales, items: [], sessions: [], messages: [], config: [], registry: [], period: '30d', now: NOW });
+    expect(JSON.parse(out.facts).product_performance).toEqual([
+      { sku: 'A', name: 'Alpha', revenue: 20, prev_revenue: 0, units: 2, prev_units: 0, quantity: 4, margin_pct: 40 },
+    ]);
+  });
+
+  test('records keep up to five named invest picks in the insight message', () => {
+    const run = load(ANALYSIS_RECORDS);
+    const invest = [{ sku: 'A', name: 'Alpha', reason: 'Up 40%' }, { sku: 'X' }, { reason: 'no name' }, null, 1, 2, 3].concat(
+      [1, 2, 3, 4, 5].map((n) => ({ sku: 's' + n, name: 'P' + n, reason: '' })),
+    );
+    const out = run({ output: { insight: 'ok', items: [], invest }, registry: [], now: NOW, uuid: 'u', execution_id: 1 });
+    expect(JSON.parse(out.message.content).invest).toEqual([{ sku: 'A', name: 'Alpha', reason: 'Up 40%' }, { sku: 'X', name: 'X', reason: '' }]);
+    const old = run({ output: { insight: 'ok', items: [] }, registry: [], now: NOW, uuid: 'u', execution_id: 1 });
+    expect(JSON.parse(old.message.content).invest).toEqual([]);
   });
 });
 

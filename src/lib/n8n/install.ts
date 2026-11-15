@@ -5,7 +5,7 @@
 import { CORE_VERSION, TABLES, TABLE_NAMES, WORKFLOWS, type CoreWorkflow, type TableIds, type TableName } from './core/schema.ts';
 import { BUILD_SUMMARY_CODE, SUMMARY_SALES_SINCE, apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
 import { extractVapid, signPushCode } from './core/code.ts';
-import { MODEL_CHOICES, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
+import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, BUILD_RECORDS_CODE, MODEL_CHOICES, PREPARE_FACTS_CODE, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
 
 export interface McpLike {
   call<T = unknown>(name: string, args?: Record<string, unknown>): Promise<T>;
@@ -204,8 +204,8 @@ export async function install(mcp: McpLike, o: InstallOptions): Promise<InstallI
 
   const installed = Number(config.version || CORE_VERSION);
   // Workflows created above are already current; only the ones that existed get upgraded.
-  const existing = { notify: newConfig.vapid_public_key ? undefined : workflows.notify, api: det.workflows.api };
-  if (installed < CORE_VERSION && (existing.notify || existing.api)) {
+  const existing = { notify: newConfig.vapid_public_key ? undefined : workflows.notify, api: det.workflows.api, analyze: det.workflows.analyze };
+  if (installed < CORE_VERSION && (existing.notify || existing.api || existing.analyze)) {
     step('Updating Invenstory…');
     await upgradeCore(mcp, existing, installed);
   }
@@ -251,6 +251,19 @@ async function upgradeCore(mcp: McpLike, workflows: Partial<Record<CoreWorkflow,
       ],
     });
     await mcp.call('publish_workflow', { workflowId: workflows.api });
+  }
+  if (from < 4 && workflows.analyze) {
+    // v4: analysis also ranks products worth investing more in (Dashboard card).
+    await mcp.call('update_workflow', {
+      workflowId: workflows.analyze,
+      operations: [
+        { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: PREPARE_FACTS_CODE },
+        { type: 'setNodeParameter', nodeName: 'Insight Format', path: '/inputSchema', value: JSON.stringify(ANALYSIS_SCHEMA) },
+        { type: 'setNodeParameter', nodeName: 'Analyst', path: '/messages/messageValues/0/message', value: ANALYSIS_SYSTEM },
+        { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+      ],
+    });
+    await mcp.call('publish_workflow', { workflowId: workflows.analyze });
   }
 }
 

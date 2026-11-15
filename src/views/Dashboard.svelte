@@ -20,9 +20,10 @@
   const cur = $derived(s?.currency ?? 'USD');
   const insight = $derived.by(() => {
     const m = s?.session?.origin === 'analysis' ? s.session.messages.find((x) => x.role === 'assistant') : null;
-    const c = m?.content as { type?: string; text?: string } | undefined;
-    return c?.type === 'insight' ? { text: c.text ?? '', at: s!.session!.created_at } : null;
+    const c = m?.content as { type?: string; text?: string; invest?: Invest[] } | undefined;
+    return c?.type === 'insight' ? { text: c.text ?? '', at: s!.session!.created_at, invest: Array.isArray(c.invest) ? c.invest : [] } : null;
   });
+  type Invest = { sku: string; name: string; reason: string };
   let stockAlerts = $state<StockAlerts>({ loading: true, error: '', items: [] });
   const periods: Period[] = ['7d', '30d', '90d'];
 </script>
@@ -34,6 +35,19 @@
   {#if !s}
     <p class="muted">{d.loading ? 'Loading…' : ''}</p>
   {:else}
+    {#if insight?.invest.length}
+      <section class="card invest-card" aria-labelledby="h-invest">
+        <div class="row between">
+          <h2 id="h-invest">Invest more in</h2>
+          <span class="muted small">{ago(insight.at)}</span>
+        </div>
+        <ol class="invest-list">
+          {#each insight.invest as p, i (i)}
+            <li><strong>{p.name}</strong>{#if p.reason}<span class="muted"> {p.reason}</span>{/if}</li>
+          {/each}
+        </ol>
+      </section>
+    {/if}
     <section class="card actions-banner" aria-labelledby="h-actions">
       <div class="row between">
         <h2 id="h-actions">Action items</h2>
@@ -239,6 +253,9 @@
   .dashboard :global(.kpi .label), .dashboard :global(.kpi .hint) { font-size: 10px; }
   .actions-banner .plain, .activity-card :global(ul) { flex-wrap: wrap; overflow: visible; }
   .dashboard :global(.kpi .value) { white-space: normal; overflow: visible; }
+  .invest-card { grid-column: 1 / -1; padding: 10px 16px; }
+  .invest-list { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
+  .invest-list li::marker { color: var(--accent); font-weight: 600; }
   .inventory-alerts { margin: 0; padding-left: 18px; display: grid; gap: 8px; line-height: 1.5; }
   .inventory-alerts li::marker { color: #b06b5b; }
   .inventory-alerts li.out { color: #9e453b; }
