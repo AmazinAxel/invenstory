@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Chat has a "New chat" button: it clears the conversation and the next message starts a separate session, so the model
+  no longer sees the old messages (#21, D21). Why: the only way to change topic was to keep chatting in one growing
+  history. Earlier chats stay in n8n but the app shows only the newest session, so they cannot be reopened. Reloading
+  before sending shows the previous chat again.
 - The Automations tab has an "AI provider" card again: it shows the current provider and model and lets the owner switch
   to Claude or any OpenAI-compatible provider (OpenAI, Gemini, OpenRouter, Grok, Groq, Ollama, custom URL) with an API
   key. The connection is tested before saving and the old provider is kept if it fails (#20, D20). Why: without it a
