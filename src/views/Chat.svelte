@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { tick } from 'svelte';
-  import { chat } from '../state/chat.svelte.ts';
-  import { chatTurns, visibleText, type ToolCall } from '../state/chat-history.ts';
+  import { tick, untrack } from 'svelte';
+  import { nearBottom } from '../lib/scroll.ts';
+  import { chat, SNAPSHOT_MARK } from '../state/chat.svelte.ts';
   import { toolLabel } from '../lib/agent/tools.ts';
+  import { toolCalls, type Message, type Part } from '../lib/llm/types.ts';
   import { splitOptions } from '../lib/agent/options.ts';
   import Md from '../ui/Md.svelte';
   import Prompt from '../ui/Prompt.svelte';
@@ -20,10 +21,34 @@
     return m;
   });
 
+  function visibleText(m: Message): string {
+    return m.parts
+      .filter((p) => p.type === 'text' && !p.text.startsWith(SNAPSHOT_MARK))
+      .map((p) => (p.type === 'text' ? p.text : ''))
+      .join('\n\n');
+  }
+
   const rows = $derived(chat.messages.filter((m) => m.role === 'assistant' || visibleText(m)));
 
-  // Tool calls fold; only each turn's last text shows (see chatTurns).
-  const turns = $derived(chatTurns(chat.messages));
+  // One turn = everything the assistant did between two owner messages. The owner sees its tool calls folded and
+  // only its last text (text written between tool calls is narration, hidden).
+  type Call = Extract<Part, { type: 'tool_call' }>;
+  type Turn = { user: string } | { calls: Call[]; text: string };
+  const turns = $derived.by(() => {
+    const out: Turn[] = [];
+    for (const m of rows) {
+      if (m.role === 'user') {
+        out.push({ user: visibleText(m) });
+        continue;
+      }
+      let t = out.at(-1);
+      if (!t || 'user' in t) out.push((t = { calls: [], text: '' }));
+      t.calls.push(...toolCalls(m.parts));
+      const text = visibleText(m);
+      if (text.trim()) t.text = text;
+    }
+    return out;
+  });
 
   function status(id: string): string {
     const live = chat.tools[id];
@@ -41,12 +66,46 @@
 
   let end: HTMLDivElement | undefined = $state();
   let composerH = $state(0);
+  // Follow new content only while the owner is at the bottom; if they scrolled up to read, leave them and offer a jump.
+  // `pinned` changes only on scroll events, never on content growth, so a long chunk can't unpin a following view.
+  let pinned = $state(true);
+  let unseen = $state(false);
+  let prevLen = 0;
+  let wasActive = false;
+
+  function atBottom(): boolean {
+    if (!end) return true;
+    const inset = parseFloat(getComputedStyle(end).scrollMarginBottom) || 0;
+    return nearBottom(scrollY, innerHeight - inset, scrollY + end.getBoundingClientRect().bottom);
+  }
+  function toBottom() {
+    end?.scrollIntoView({ block: 'end' });
+    pinned = true;
+    unseen = false;
+  }
+  function onscroll() {
+    if (!active) return;
+    pinned = atBottom();
+    if (pinned) unseen = false;
+  }
+
   $effect(() => {
-    void rows.length;
+    const n = rows.length;
     void chat.streaming;
-    if (active) void tick().then(() => end?.scrollIntoView({ block: 'end' }));
+    const grew = n > prevLen;
+    prevLen = n;
+    const opened = active && !wasActive;
+    wasActive = active;
+    if (!active) return;
+    const sent = grew && rows[n - 1]?.role === 'user';
+    untrack(() => {
+      if (opened || sent || pinned) void tick().then(toBottom);
+      else unseen = true;
+    });
   });
 </script>
+
+<svelte:window {onscroll} />
 
 <div class="chat" class:embedded style:--composer-h="{composerH}px">
   <header class="row between" hidden={embedded}>
@@ -65,7 +124,7 @@
       </div>
     {/if}
 
-    {#snippet toolRow(p: ToolCall)}
+    {#snippet toolRow(p: Call)}
       {@const live = chat.tools[p.id]}
       {@const s = status(p.id)}
       <div class="tool {s}">
@@ -126,6 +185,7 @@
   </div>
 
   <div class="composer" bind:offsetHeight={composerH}>
+    {#if !pinned && unseen}<button class="chip jump" onclick={toBottom}><Icon name="down" size={16} /> Jump to latest</button>{/if}
     <Prompt running={chat.running} onsend={(t) => chat.send(t)} onstop={() => chat.stop()} />
   </div>
 </div>
@@ -171,6 +231,15 @@
     border-radius: 999px;
     min-height: 40px;
     font-size: 0.9rem;
+  }
+  .jump {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .tool {
     display: flex;
