@@ -1,22 +1,28 @@
 <script lang="ts">
   import { dashboard as d } from '../state/dashboard.svelte.ts';
-  import { money, count } from '../lib/format.ts';
+  import { money, count, ago } from '../lib/format.ts';
   import type { Period } from '../lib/n8n/api.ts';
   import Kpi from '../ui/Kpi.svelte';
   import Trend from '../ui/Trend.svelte';
   import StockOverview, { type StockAlerts } from '../ui/StockOverview.svelte';
-  import SalesHeatmap, { type HeatmapRow } from '../ui/SalesHeatmap.svelte';
+  import SalesHeatmap from '../ui/SalesHeatmap.svelte';
   import ActionItemRow from '../ui/ActionItem.svelte';
   import Activity from '../ui/Activity.svelte';
   import Icon from '../ui/Icon.svelte';
+  import Md from '../ui/Md.svelte';
   import NotifyPrompt from '../ui/NotifyPrompt.svelte';
 
-  let { onchat, heatmapRows = [], heatmapIsDemo = false }: { onchat: () => void; heatmapRows?: HeatmapRow[]; heatmapIsDemo?: boolean } = $props();
+  let { onchat }: { onchat: () => void } = $props();
   let activityKey = $state(0);
 
 
   const s = $derived(d.data);
   const cur = $derived(s?.currency ?? 'USD');
+  const insight = $derived.by(() => {
+    const m = s?.session?.origin === 'analysis' ? s.session.messages.find((x) => x.role === 'assistant') : null;
+    const c = m?.content as { type?: string; text?: string } | undefined;
+    return c?.type === 'insight' ? { text: c.text ?? '', at: s!.session!.created_at } : null;
+  });
   let stockAlerts = $state<StockAlerts>({ loading: true, error: '', items: [] });
   const periods: Period[] = ['7d', '30d', '90d'];
 </script>
@@ -91,8 +97,23 @@
       <Trend data={s.sales_trend} currency={cur} height={94} />
     </section>
 
+    <section class="card insight-card" aria-labelledby="h-insight">
+      <h2 id="h-insight">Latest analysis</h2>
+      {#if insight}
+        <Md text={insight.text} />
+        <div class="row between">
+          <span class="muted small">{ago(insight.at)}</span>
+          <button class="link" onclick={onchat}>Ask a follow-up</button>
+        </div>
+      {:else if s.config.analysis}
+        <p class="muted small">Insights appear after the next analysis.</p>
+      {:else}
+        <p class="muted small">Add an LLM credential in n8n to get insights. See Automations.</p>
+      {/if}
+    </section>
+
     <section class="card heatmap-card" aria-label="Sales heatmap">
-      <SalesHeatmap rows={heatmapRows} currency={cur} demo={heatmapIsDemo} endDate={s.generated_at.slice(0, 10)} periodDays={Number(s.period.slice(0, -1))} />
+      <SalesHeatmap products={s.product_sales} currency={cur} periodDays={Number(s.period.slice(0, -1))} />
     </section>
 
     <section class="card activity-card" aria-labelledby="h-activity">

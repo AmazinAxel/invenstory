@@ -13,7 +13,7 @@
   let loading = $state(true);
   let error = $state('');
   let retry = $state(0);
-  // Keep the existing StockList rules, with out taking precedence over low.
+  // Out of stock takes precedence over low stock.
   const level = (item: StockItem) => item.quantity <= 0 ? 'out' as const
     : item.reorder_point !== null && item.quantity <= item.reorder_point ? 'low' as const : null;
   const maximum = $derived(items.reduce((max, item) => Math.max(max, item.quantity), 0));
