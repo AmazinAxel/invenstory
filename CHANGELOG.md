@@ -6,6 +6,11 @@
   API-key form moved behind "Use an API key instead". The n8n field accepts a bare Cloud name (`acme` ⇒
   `acme.app.n8n.cloud`) or any pasted editor link. Why: users had to find an instance URL and create an API key
   before seeing anything; now it is a name plus two logins. CSP `connect-src` allows `http://localhost:*` for Ollama.
+- Guided setup replaces the empty dashboard: after install the app shows connectors (Google Sheets, Shopify,
+  WooCommerce, Airtable, Stripe, Postgres) with connected status, AI ideas for the connected services, a three-step
+  progress list and the chat inline. Tabs and dashboard unlock once stock or sales rows exist and one Invenstory
+  automation is active (remembered per device, cleared on disconnect). Why: a dashboard of zeros told new users
+  nothing; setup is a conversation, so it lives next to the chat.
 - Onboarding step 3 ("Install into n8n") is gone: setup runs automatically once n8n and a model are connected,
   showing only "Setting things up…" or a retry. Why: the audience should not need to know about tables and workflows.
 - Install no longer asks for a base currency; it is inferred from the browser locale (first language tag with a

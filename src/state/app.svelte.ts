@@ -52,7 +52,7 @@ class AppState {
 
   async disconnect() {
     await logout();
-    await Promise.all([kv.del(K.install), kv.del(K.api)]);
+    await Promise.all([kv.del(K.install), kv.del(K.api), kv.del(K.setupDone)]);
     this.conn = null;
     this.install = null;
     this.mcpClient = null;

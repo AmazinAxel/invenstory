@@ -44,6 +44,7 @@ export const K = {
   orPending: 'openrouter.pending',
   llm: 'llm',
   install: 'install',
+  setupDone: 'setup.done',
   api: 'api',
   push: 'push',
 } as const;
