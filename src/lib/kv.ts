@@ -41,6 +41,7 @@ export const K = {
   n8nClient: 'n8n.client',
   n8nTokens: 'n8n.tokens',
   n8nPending: 'n8n.pending',
+  orPending: 'openrouter.pending',
   llm: 'llm',
   install: 'install',
   api: 'api',

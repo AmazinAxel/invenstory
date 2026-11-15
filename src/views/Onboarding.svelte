@@ -4,6 +4,7 @@
   import { testLlm } from '../lib/llm/index.ts';
   import { ANTHROPIC_DEFAULT_MODEL } from '../lib/llm/anthropic.ts';
   import { OPENAI_PRESETS } from '../lib/llm/openai.ts';
+  import { beginOpenRouterLogin, OPENROUTER_DEFAULT_MODEL } from '../lib/llm/openrouter.ts';
   import type { Effort, LlmConfig, Protocol } from '../lib/llm/types.ts';
   import InstallStep from './InstallStep.svelte';
 
@@ -62,6 +63,34 @@
       : { protocol, baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), model: model.trim(), label: preset };
   }
 
+  let showForm = $state(false);
+
+  async function openRouterLogin() {
+    llmBusy = true;
+    await beginOpenRouterLogin(OPENROUTER_DEFAULT_MODEL);
+  }
+
+  // Local Ollama needs no key; pick its first installed model. The page origin must be in OLLAMA_ORIGINS.
+  async function useOllama() {
+    llmBusy = true;
+    llmResult = null;
+    const base = 'http://localhost:11434/v1';
+    try {
+      const j = (await (await fetch(`${base}/models`)).json()) as { data?: { id: string }[] };
+      const id = j.data?.[0]?.id;
+      if (!id) throw new Error('Ollama is running but has no models. Run `ollama pull qwen3` first.');
+      await app.saveLlm({ protocol: 'openai', baseUrl: base, apiKey: '', model: id, label: 'Ollama' });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      llmResult = {
+        ok: false,
+        text: msg.includes('no models') ? msg : `Could not reach Ollama. Start it with OLLAMA_ORIGINS=${location.origin} ollama serve.`,
+      };
+    } finally {
+      llmBusy = false;
+    }
+  }
+
   async function testAndSave() {
     llmBusy = true;
     llmResult = null;
@@ -92,12 +121,12 @@
         <button class="link" onclick={() => app.disconnect()}>Disconnect</button>
       </div>
     {:else}
-      <p class="muted small">Needs n8n 2.36+ with instance-level MCP enabled.</p>
+      <p class="muted small">Needs n8n 2.36+ with Settings → MCP access turned on.</p>
       <label>
-        Instance URL
+        n8n name or URL
         <input
           bind:value={base}
-          placeholder="yourname.app.n8n.cloud"
+          placeholder="yourname (from yourname.app.n8n.cloud)"
           inputmode="url"
           autocomplete="url"
           autocapitalize="off"
@@ -114,6 +143,15 @@
 
   <section class="card" aria-labelledby="step-llm">
     <h2 id="step-llm">2 · Language model</h2>
+    {#if app.llm && !showForm}
+      <p class="ok">Using {app.llm.label ?? 'Claude'} · {app.llm.model}</p>
+      <div class="row"><button class="link" onclick={() => (showForm = true)}>Change</button></div>
+    {:else if !showForm}
+      <button class="primary" disabled={llmBusy} onclick={openRouterLogin}>Log in with OpenRouter</button>
+      <button disabled={llmBusy} onclick={useOllama}>{llmBusy ? 'Looking for Ollama…' : 'Use Ollama on this computer'}</button>
+      <div class="row"><button class="link" onclick={() => (showForm = true)}>Use an API key instead</button></div>
+      {#if llmResult}<p class="small {llmResult.ok ? 'ok' : 'error'}">{llmResult.text}</p>{/if}
+    {:else}
     <div class="segmented" role="group" aria-label="Protocol">
       <button aria-pressed={protocol === 'anthropic'} onclick={() => pickProtocol('anthropic')}>Claude</button>
       <button aria-pressed={protocol === 'openai'} onclick={() => pickProtocol('openai')}>OpenAI-compatible</button>
@@ -148,11 +186,12 @@
         </select>
       </label>
     {/if}
-    <button class="primary" disabled={!apiKey.trim() || (protocol === 'openai' && (!model.trim() || !baseUrl.trim())) || llmBusy} onclick={testAndSave}>
+    <button class="primary" disabled={(!apiKey.trim() && (protocol === 'anthropic' || preset !== 'Ollama')) || (protocol === 'openai' && (!model.trim() || !baseUrl.trim())) || llmBusy} onclick={testAndSave}>
       {llmBusy ? 'Testing…' : 'Test and save'}
     </button>
     {#if llmResult}<p class="small {llmResult.ok ? 'ok' : 'error'}">{llmResult.text}</p>{/if}
     <p class="muted small">The key stays on this device.</p>
+    {/if}
   </section>
 
   <InstallStep />

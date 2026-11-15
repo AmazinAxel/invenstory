@@ -4,6 +4,7 @@ import { kv, K } from '../lib/kv.ts';
 import { Mcp } from '../lib/n8n/mcp.ts';
 import { completeLogin, logout, type Connection } from '../lib/n8n/oauth.ts';
 import type { LlmConfig } from '../lib/llm/types.ts';
+import { completeOpenRouterLogin } from '../lib/llm/openrouter.ts';
 import type { InstallInfo } from '../lib/n8n/install.ts';
 
 class AppState {
@@ -18,6 +19,8 @@ class AppState {
 
   async init() {
     try {
+      const fromOpenRouter = await completeOpenRouterLogin();
+      if (fromOpenRouter) await kv.set(K.llm, fromOpenRouter);
       const fromLogin = await completeLogin();
       this.conn = fromLogin ?? (await kv.get<Connection>(K.n8nConn)) ?? null;
       this.llm = (await kv.get<LlmConfig>(K.llm)) ?? null;

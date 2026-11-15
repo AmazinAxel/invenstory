@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Faster onboarding: "Log in with OpenRouter" (OAuth PKCE, returns a user-owned key, default model
+  `openrouter/auto`) and one-click local Ollama (no key, first installed model) are the default LLM choices; the
+  API-key form moved behind "Use an API key instead". The n8n field accepts a bare Cloud name (`acme` ⇒
+  `acme.app.n8n.cloud`) or any pasted editor link. Why: users had to find an instance URL and create an API key
+  before seeing anything; now it is a name plus two logins. CSP `connect-src` allows `http://localhost:*` for Ollama.
+- Incident: login to an n8n Cloud instance failed with "No MCP server found". Cause: MCP access was off in n8n
+  settings (`/mcp-server/http` answers 404 `MCP access is disabled`). The error now says so and where to turn it on.
 - Moved `.env.example` to `scripts/n8n.env.example`. Cloudflare's Git deploy wizard read the root file and asked the
   deployer for `N8N_BASE`/`N8N_MCP_TOKEN`, implying one shared n8n account. The app never used them: every user logs
   in to their own n8n in the browser and brings their own LLM key. Only `scripts/n8n.ts` reads them.

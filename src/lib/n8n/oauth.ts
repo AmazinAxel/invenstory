@@ -49,9 +49,15 @@ const MCP_PATH = '/mcp-server/http';
 
 export function normaliseBase(input: string): string {
   let s = input.trim();
+  // A bare name ("acme") means an n8n Cloud instance: acme.app.n8n.cloud.
+  if (/^[a-z0-9-]+$/i.test(s)) s += '.app.n8n.cloud';
   if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
   const u = new URL(s);
-  const path = u.pathname.replace(/\/+$/, '').replace(new RegExp(MCP_PATH + '$'), '');
+  // Pasted editor links (…/workflow/abc, …/home/workflows) point at the instance root.
+  const path = u.pathname
+    .replace(/\/(home|workflows?|projects|executions|settings|signin|credentials)(\/.*)?$/, '')
+    .replace(/\/+$/, '')
+    .replace(new RegExp(MCP_PATH + '$'), '');
   return u.origin + path;
 }
 
@@ -79,7 +85,15 @@ export async function discover(base: string): Promise<Connection> {
     prm = await getJson(u);
     if (prm) break;
   }
-  if (!prm) throw new AuthError(`No MCP server found at ${base}. Is instance-level MCP enabled?`);
+  if (!prm) {
+    // With the toggle off n8n answers 404 {"message":"MCP access is disabled"}. n8n Cloud sends no CORS on this
+    // path, so ask through the same-origin proxy (Cloud hosts only; others get the generic message).
+    const msg = await fetch('/mcp', { headers: { 'x-n8n-instance': origin } }).then((r) => r.json()).then((x: { message?: string }) => x.message ?? '').catch(() => '');
+    if (/disabled/i.test(msg)) {
+      throw new AuthError(`MCP access is turned off on ${new URL(base).host}. In n8n open Settings → MCP access, enable it, then try again.`);
+    }
+    throw new AuthError(`No MCP server found at ${base}. Is instance-level MCP enabled?`);
+  }
 
   const servers = prm.authorization_servers as string[] | undefined;
   const issuer = new URL(servers?.[0] ?? origin);
