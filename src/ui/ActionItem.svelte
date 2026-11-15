@@ -27,7 +27,7 @@
     <h3>{item.title}</h3>
     {#if item.detail}<p class="muted small">{item.detail}</p>{/if}
     {#if item.kind === 'draft' && item.draft_to}<p class="muted small">To {item.draft_to}</p>{/if}
-    {#if result}<p class="small {result.ok ? 'ok' : 'error'}">{result.text}</p>{/if}
+    {#if result}<p class="small {result.ok ? 'ok' : 'error'}" role={result.ok ? 'status' : 'alert'}>{result.text}</p>{/if}
   </div>
   <div class="actions">
     <button class="primary" disabled={!!busy} onclick={onact}>

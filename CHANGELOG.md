@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased
+- Accessibility polish (UI audit P2s): buttons show hover and press feedback; placeholders use the muted color
+  (4.1:1 ⇒ 5:1+ in dark mode); every error message is announced (`role="alert"`, success notes `role="status"`); the
+  tab badge is read as "N new"; the connector search has a label; text links and the open-in-n8n icon get ~44px tap
+  areas without changing layout. Why: taps gave no feedback on phones, and screen-reader and small-target gaps
+  remained after the P1 pass.
+- Chat scrolling: the newest message now stops above the fixed composer, a streaming reply keeps following only while
+  the owner is at the bottom (scroll up to read and it leaves you alone), and a "Jump to latest" button appears when new
+  content arrives out of view. Opening the Chat tab and sending a message always go to the bottom. Why: autoscroll
+  appeared not to work, and a follow-the-bottom view that can't be escaped is unreadable while a reply streams.
 - Accessibility and startup cost (UI audit P1s): text fields, the stock search and the chat composer get a
   `--control-line` border with at least 3:1 contrast in both themes (was 1.28:1, WCAG 1.4.11). The Automations tab loads its
   n8n data and AI ideas on first visit instead of at app start. Why: fields were hard to find for low-vision users, and
@@ -91,3 +100,6 @@ Kept so future work doesn't reintroduce them.
    dedupe in the notify signing code (core v2, applied in place).
 7. **Onboarding confusion:** a doc example's placeholder sheet link and "today's date" were taken literally. The agent
    handled it correctly; keep examples in user-facing text concrete.
+8. **Chat autoscroll "didn't fire"** (issue #2). Cause found by inspection, not live repro: `scrollIntoView` aligned the
+   end sentinel to the viewport bottom, which sits under the fixed composer and tab bar, so the newest message was hidden.
+   Fix: `scroll-margin-bottom` on the sentinel = tab bar + measured composer height. Live check still wanted.

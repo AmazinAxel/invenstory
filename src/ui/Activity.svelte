@@ -45,7 +45,7 @@
 </script>
 
 {#if error}
-  <p class="error small">{error}</p>
+  <p class="error small" role="alert">{error}</p>
 {:else if rows.length}
   <ul>
     {#each rows as r (r.id)}

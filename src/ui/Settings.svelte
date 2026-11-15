@@ -43,7 +43,7 @@
       {busy ? '…' : push === 'on' ? 'Turn off on this device' : 'Turn on for this device'}
     </button>
   {/if}
-  {#if error}<p class="error small">{error}</p>{/if}
+  {#if error}<p class="error small" role="alert">{error}</p>{/if}
 </section>
 
 <section class="card" aria-labelledby="h-settings">

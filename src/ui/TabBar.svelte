@@ -16,8 +16,9 @@
 <nav aria-label="Main">
   {#each tabs as t (t.id)}
     <button aria-current={tab === t.id ? 'page' : undefined} onclick={() => onselect(t.id)}>
-      <span class="ic"><Icon name={t.icon} size={22} />{#if badge?.[t.id]}<span class="dot" aria-label="{badge[t.id]} new"></span>{/if}</span>
+      <span class="ic"><Icon name={t.icon} size={22} />{#if badge?.[t.id]}<span class="dot" aria-hidden="true"></span>{/if}</span>
       <span class="lbl">{t.label}</span>
+      {#if badge?.[t.id]}<span class="sr-only">, {badge[t.id]} new</span>{/if}
     </button>
   {/each}
 </nav>

@@ -165,17 +165,42 @@ button.primary {
   font-weight: 600;
 }
 
-button.link {
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* Text links keep their inline size; padding cancelled by negative margin grows the tap area to ~44px. */
+.link {
+  display: inline-block;
   border: 0;
   background: none;
   color: var(--accent);
-  padding: 0;
+  padding: 11px 4px;
+  margin: -11px -4px;
   min-height: 0;
+  text-decoration: none;
 }
 
 button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* Press and hover feedback: a neutral gray wash reads on every button fill in both themes. */
+button:not(:disabled, .link):active {
+  background-image: linear-gradient(rgb(128 128 128 / 0.2), rgb(128 128 128 / 0.2));
+}
+.link:active {
+  opacity: 0.7;
+}
+@media (hover: hover) {
+  button:not(:disabled, .link):hover {
+    background-image: linear-gradient(rgb(128 128 128 / 0.1), rgb(128 128 128 / 0.1));
+  }
+  .link:not(:disabled):hover {
+    text-decoration: underline;
+  }
 }
 
 .segmented {

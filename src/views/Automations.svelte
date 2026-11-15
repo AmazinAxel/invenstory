@@ -174,7 +174,7 @@
       </label>
       <label>Model <input bind:value={model} placeholder="n8n default" autocapitalize="off" spellcheck="false" /></label>
       <button class="primary" disabled={setupBusy} onclick={setup}>{setupBusy ? setupStep || 'Setting up…' : 'Set up analysis'}</button>
-      {#if setupError}<p class="error small">{setupError}</p>{/if}
+      {#if setupError}<p class="error small" role="alert">{setupError}</p>{/if}
     {:else}
       <p class="muted small">Analysis needs an LLM credential (Anthropic, OpenAI, Gemini, OpenRouter, xAI, Groq or Mistral) in n8n.</p>
       <div class="row">
@@ -195,7 +195,7 @@
               <span>{f.name.slice(NAME_PREFIX.length)}</span>
               <span class="muted small">{f.active ? 'Active' : 'Draft'} · changed {ago(f.updatedAt)}</span>
             </div>
-            <a href="{base}/workflow/{f.id}" target="_blank" rel="noopener" aria-label="Open {f.name} in n8n"><Icon name="link" size={18} /></a>
+            <a class="open" href="{base}/workflow/{f.id}" target="_blank" rel="noopener" aria-label="Open {f.name} in n8n"><Icon name="link" size={18} /></a>
           </li>
         {/each}
       </ul>
@@ -232,7 +232,7 @@
   <section class="card" aria-labelledby="h-nodes">
     <h2 id="h-nodes">Find a connector</h2>
     <form class="row" onsubmit={(e) => (e.preventDefault(), searchNodes())}>
-      <input bind:value={query} placeholder="e.g. Shopify, Airtable, Postgres" style="flex: 1" autocapitalize="off" />
+      <input bind:value={query} aria-label="Search n8n connectors" placeholder="e.g. Shopify, Airtable, Postgres" style="flex: 1" autocapitalize="off" />
       <button type="submit" disabled={searching || !query.trim()}>{searching ? '…' : 'Search'}</button>
     </form>
     {#if found.length}
@@ -296,6 +296,15 @@
   .dot.on {
     background: var(--ok);
     border-color: var(--ok);
+  }
+  .open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: -10px -12px -10px 0;
+    flex: none;
   }
   .button {
     display: inline-flex;
