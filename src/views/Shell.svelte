@@ -8,9 +8,6 @@
   import Setup from './Setup.svelte';
   import { setup } from '../state/setup.svelte.ts';
   import Brand from '../ui/Brand.svelte';
-  import type { HeatmapRow } from '../ui/SalesHeatmap.svelte';
-
-  let { heatmapRows = [], heatmapIsDemo = false }: { heatmapRows?: HeatmapRow[]; heatmapIsDemo?: boolean } = $props();
 
   const saved = (() => {
     try {
@@ -54,7 +51,7 @@
 {:else}
 <header class="mobile-brand"><Brand /></header>
 <main class:wide={tab === 'dashboard'}>
-  <div hidden={tab !== 'dashboard'}><Dashboard onchat={() => select('chat')} {heatmapRows} {heatmapIsDemo} /></div>
+  <div hidden={tab !== 'dashboard'}><Dashboard onchat={() => select('chat')} /></div>
   <div hidden={tab !== 'chat'}><Chat active={tab === 'chat'} /></div>
   <div hidden={tab !== 'automations'}><Automations active={tab === 'automations'} onchat={() => select('chat')} /></div>
 </main>

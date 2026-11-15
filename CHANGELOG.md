@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased
+- The Revenue Heatmap shows products instead of categories and now has real data: one tile per product (top 50),
+  area = revenue this period, color = change against the period before. Core v3: the summary reads two periods of
+  sales and returns `product_sales`; installs below v3 rerun setup on load, which updates the `Summary Sales` filter
+  and `Build Summary` code in place. Upgrades now also run when setup had to recreate the notify workflow (before,
+  that skipped every upgrade step). Why: the dashboard redesign added the heatmap without a data source (it always
+  said "not connected"), and the store has no product categories.
+- The Dashboard shows the latest analysis insight again ("Latest analysis" card beside Sales, with "Ask a
+  follow-up"). Why: the redesign dropped it, so analysis results were only visible in Chat. The unused TopSellers and
+  StockList components are removed (the heatmap and Stock Overview replace them).
 - Chat has a "New chat" button: it clears the conversation and the next message starts a separate session, so the model
   no longer sees the old messages (#21, D21). Why: the only way to change topic was to keep chatting in one growing
   history. Earlier chats stay in n8n but the app shows only the newest session, so they cannot be reopened. Reloading

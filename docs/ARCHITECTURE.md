@@ -160,7 +160,7 @@ src/lib/agent/              tools, prompt, loop
 src/lib/{sse,draft,md,format,push,suggest}.ts
 src/state/                  app, dashboard, chat (+ chat-history)
 src/views/                  Onboarding, InstallStep, Shell, Dashboard, Chat, Automations
-src/ui/                     Kpi, Trend, TopSellers, StockList, ActionItem, Activity, Md, MdInline, Prompt, TabBar, Settings, Icon
+src/ui/                     Kpi, Trend, SalesHeatmap, StockOverview, ActionItem, Activity, Md, MdInline, Prompt, TabBar, Settings, Icon
 test/                       bun tests
 docs/                       this folder
 ```

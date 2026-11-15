@@ -36,11 +36,17 @@ function run(input) {
     if (inBase(p.currency)) stockValue += q * num(p.unit_cost); else excluded++;
   });
 
-  var byDay = {}, bySku = {}, revenue = 0, units = 0;
+  var byDay = {}, bySku = {}, prevBySku = {}, revenue = 0, units = 0;
   real(input.sales).forEach(function (s) {
     var t = ts(s.sold_at);
-    if (!t || t < since || t > now + 86400000) return;
+    if (!t || t < since - days * 86400000 || t > now + 86400000) return;
     var q = num(s.quantity);
+    if (t < since) {
+      var prev = prevBySku[s.sku] || (prevBySku[s.sku] = { units: 0, revenue: 0 });
+      prev.units += q;
+      if (inBase(s.currency)) prev.revenue += num(s.revenue);
+      return;
+    }
     units += q;
     var sku = bySku[s.sku] || (bySku[s.sku] = { sku: s.sku, units: 0, revenue: 0 });
     sku.units += q;
@@ -67,6 +73,13 @@ function run(input) {
     .map(function (p) { return { sku: p.sku, name: p.name, quantity: num(p.quantity), units: (bySku[p.sku] || { units: 0 }).units }; })
     .sort(function (a, b) { return a.units - b.units || b.quantity - a.quantity; })
     .slice(0, 5);
+  var productSales = Object.keys(bySku).concat(Object.keys(prevBySku).filter(function (k) { return !bySku[k]; }))
+    .map(function (k) {
+      var c = bySku[k] || { units: 0, revenue: 0 }, p = prevBySku[k] || { units: 0, revenue: 0 };
+      return { sku: k, name: names[k] || k, units: c.units, revenue: round(c.revenue), prev_units: p.units, prev_revenue: round(p.revenue) };
+    })
+    .sort(function (a, b) { return b.revenue - a.revenue || b.prev_revenue - a.prev_revenue; })
+    .slice(0, 50);
 
   var items = real(input.items).filter(function (it) { return it.status === 'open'; })
     .sort(function (a, b) { return ts(b.created_at) - ts(a.created_at); })
@@ -90,6 +103,7 @@ function run(input) {
     sales_trend: trend,
     top_sellers: top,
     slow_movers: slow,
+    product_sales: productSales,
     action_items: items,
     session: session ? { session_id: session.session_id, created_at: session.created_at, origin: session.origin, messages: messages } : null,
     config: { version: num(cfg.version), base_currency: currency, vapid_public_key: cfg.vapid_public_key || null, analysis: !!cfg.analyze_workflow_id },
