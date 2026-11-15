@@ -173,7 +173,7 @@
     {:else}
       <p class="muted small">Analysis needs an LLM credential (Anthropic, OpenAI, Gemini, OpenRouter, xAI, Groq or Mistral) in n8n.</p>
       <div class="row">
-        <a class="button" href="{base}/home/credentials" target="_blank" rel="noopener">Add it in n8n</a>
+        <a class="button" href="{base}/home/credentials/create" target="_blank" rel="noopener">Add it in n8n</a>
         <button onclick={load} disabled={loading}>Check again</button>
       </div>
     {/if}
@@ -221,7 +221,7 @@
     {:else}
       <p class="muted small">{loading ? 'Loading…' : 'No accounts connected in n8n yet.'}</p>
     {/if}
-    <a class="button" href="{base}/home/credentials" target="_blank" rel="noopener">Add an account in n8n</a>
+    <a class="button" href="{base}/home/credentials/create" target="_blank" rel="noopener">Add an account in n8n</a>
   </section>
 
   <section class="card" aria-labelledby="h-nodes">

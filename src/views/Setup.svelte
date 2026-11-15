@@ -83,12 +83,13 @@
           {#if connected(c.match)}
             <button class="link" onclick={() => chat.send(`I connected ${c.name}. Set it up to keep my stock and sales up to date.`)}>Use</button>
           {:else}
-            <a class="link" href="{base}/home/credentials" target="_blank" rel="noopener">Add</a>
+            <!-- /credentials/create opens n8n's "Add credential" picker; n8n has no URL parameter to preselect a type. -->
+            <a class="link" href="{base}/home/credentials/create" target="_blank" rel="noopener">Add</a>
           {/if}
         </li>
       {/each}
     </ul>
-    <p class="muted small">Adding opens n8n in a new tab; come back here when done. Using something else? Just say so below.</p>
+    <p class="muted small">Add opens n8n in a new tab: pick the service, sign in, then come back here. Using something else? Just say so below.</p>
     {#if setup.error}<p class="error small" role="alert">{setup.error}</p>{/if}
   </section>
 
