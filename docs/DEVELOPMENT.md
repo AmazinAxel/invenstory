@@ -19,6 +19,26 @@ Use a fixed port: the n8n OAuth client is registered per origin, and `invenstory
   validator: `#0d9488` light, `#11a394` dark.
 - Commits: one topic each, `bun run release` green, message explains why. Work on branches; `main` holds releases.
 
+## Working in parallel
+Several people (and their Claude sessions) change this repo at once and `main` moves many times a day. What keeps
+merges small:
+- **Sync before you build on something, and again before you open a pull request.** `git fetch`, then rebase (or
+  stash, fast-forward and pop for uncommitted work), then `bun run release`. A branch a few hours old usually
+  conflicts in `CHANGELOG.md`, `docs/DECISIONS.md`, `Chat.svelte` and `Automations.svelte`.
+- **ADR numbers are taken at merge time.** Use the next free number when you write the ADR; if `main` has taken it
+  meanwhile, rename the file and change its heading and its line in `docs/DECISIONS.md` (`test/adr.test.ts` checks
+  all three and allows no gaps). Everywhere else, refer to an ADR by its subject ("the voice ADR"), not its number,
+  so a renumber touches three places only.
+- **`CHANGELOG.md`: new entries go at the top of Unreleased.** Two branches doing that conflict at the same spot;
+  keep both entries.
+- **Lists that everyone appends to** (`K` in `kv.ts`, `icons.ts`, imports): put a new line next to related ones
+  rather than last when you can, so two additions do not land on the same line.
+- **Add new code as new files or new functions** rather than reshaping shared ones (`chat.svelte.ts`, `install.ts`,
+  `tools.ts`). If two features must touch the same file, keep each feature's lines together.
+- **One topic per pull request**, also when two topics were built in one working tree: split by file, and for the
+  few shared files by hunk.
+- Notes for work that someone else is doing or will pick up go in `docs/notes/`.
+
 ## How to …
 
 ### Change a core workflow (api / notify / error / analyze)
