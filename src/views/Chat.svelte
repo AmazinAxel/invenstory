@@ -1,7 +1,10 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { nearBottom, nextPinned } from '../lib/scroll.ts';
+  import { app } from '../state/app.svelte.ts';
   import { chat } from '../state/chat.svelte.ts';
+  import { listCredentials } from '../lib/n8n/install.ts';
+  import { suggestIdeas } from '../lib/suggest.ts';
   import { chatTurns, visibleText, type ToolCall } from '../state/chat-history.ts';
   import { toolLabel } from '../lib/agent/tools.ts';
   import { splitOptions } from '../lib/agent/options.ts';
@@ -13,6 +16,34 @@
   let { active, embedded = false }: { active: boolean; embedded?: boolean } = $props();
 
   const STARTERS = ['My stock is in Google Sheets', 'I sell on Shopify', 'I use WooCommerce', 'What can you do?'];
+
+  // Idea chips: one n8n credential listing + one LLM call per credential set (cached), only when the empty chat is first seen.
+  let ideas = $state<string[]>([]);
+  let ideasTried = false;
+  $effect(() => {
+    if (embedded || !active || rows.length || ideasTried || !app.llm || !app.install) return;
+    ideasTried = true;
+    const cfg = $state.snapshot(app.llm);
+    void (async () => {
+      const types = [...new Set((await listCredentials(app.mcp)).map((c) => c.type))].sort();
+      const key = `invenstory.ideas.${types.join(',')}`;
+      try {
+        const cached = localStorage.getItem(key);
+        if (cached) return void (ideas = JSON.parse(cached) as string[]);
+      } catch {
+        /* storage unavailable */
+      }
+      ideas = await suggestIdeas(cfg, types);
+      try {
+        localStorage.setItem(key, JSON.stringify(ideas));
+      } catch {
+        /* ignore */
+      }
+    })().catch(() => {
+      ideas = [];
+      ideasTried = false; // transient failure (e.g. n8n 429): retry next time the empty chat is shown
+    });
+  });
 
   // Tool-result status by call id, for calls not tracked live (e.g. after a reload).
   const results = $derived.by(() => {
@@ -106,7 +137,7 @@
         <p>Hi! I set up and run your stock and sales automations in n8n. Where do you keep your stock and sales today?</p>
       </div>
       <div class="chips">
-        {#each STARTERS as s (s)}<button class="chip" onclick={() => chat.send(s)}>{s}</button>{/each}
+        {#each new Set([...STARTERS, ...ideas]) as s (s)}<button class="chip" onclick={() => chat.send(s)}>{s}</button>{/each}
       </div>
     {/if}
 
