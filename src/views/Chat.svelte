@@ -67,11 +67,10 @@
   const announce = $derived.by(() => {
     if (chat.running) return 'Working…';
     const last = turns.at(-1);
-    if (!last) return cleared ? 'New chat started' : '';
+    if (!last) return chat.notice;
     return 'text' in last ? splitOptions(last.text).body : '';
   });
 
-  let cleared = $state(false);
   let end: HTMLDivElement | undefined = $state();
   let composerH = $state(0);
 
@@ -127,10 +126,10 @@
 <svelte:window {onscroll} />
 
 <div class="chat" class:embedded style:--composer-h="{composerH}px">
-  <header class="row between" hidden={embedded}>
-    <h1>Chat</h1>
-    {#if chat.origin === 'analysis' && rows.length}<span class="muted small">Latest analysis</span>{/if}
-    <button class="chip" disabled={chat.running || !chat.messages.length} onclick={() => { chat.newChat(); cleared = true; }}>
+  <header class="row between">
+    <h1 hidden={embedded}>Chat</h1>
+    {#if !embedded && chat.origin === 'analysis' && rows.length}<span class="muted small">Latest analysis</span>{/if}
+    <button class="chip" disabled={chat.running || !chat.messages.length} title="Starts a separate chat; earlier chats are no longer shown" onclick={() => chat.newChat()}>
       <Icon name="plus" size={16} /> New chat
     </button>
   </header>
