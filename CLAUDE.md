@@ -34,6 +34,11 @@ the secret-path `invenstory-api` webhook (data plane), and the LLM provider (cha
 - n8n MCP has no row update/delete tools: `inv_config` and `inv_actions` are append-only (newest row wins).
   Row deletes need an n8n workflow with a Data table node.
 
+## Recording changes
+Every change gets a why: commit message body explains the reason; user-visible or architectural changes get a
+CHANGELOG entry (with the reason) and, when a design choice is made or reversed, a new entry in docs/DECISIONS.md.
+Bugs found in live testing go into the CHANGELOG incident log.
+
 ## Where things are
 - `src/lib/n8n/` OAuth, MCP client, installer, data-plane API client, gate + policy, `core/` templates
 - `src/lib/agent/` tool subset (all n8n access for the LLM), system prompt, loop

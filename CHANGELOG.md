@@ -19,6 +19,25 @@ First release candidate. Implements docs/PLAN.md phases 0–7.
   live connector search; notifications and settings.
 - **Ops:** strict CSP `_headers`, Cloudflare Pages config, CI, `scripts/n8n.ts` terminal tool, documentation set.
 
+## Changes since the last release
+There was no earlier release: the previous state of the repository was the `init` commit (f144627), which held only
+the implementation plan. Everything below is new in 1.0.0-rc.1, commit by commit, with the reason for each.
+Decisions behind them are written up in [docs/DECISIONS.md](docs/DECISIONS.md) (D1–D16).
+
+| Commit | What changed | Why |
+|---|---|---|
+| `e65f924` Phase 0 results and Phase 1 scaffold | Spike results recorded in the plan; re-plan to an MCP proxy; Svelte/Vite/TS app, IndexedDB store, OAuth + MCP client, Claude/OpenAI adapters, onboarding; proxy as Pages Function + dev middleware | Phase 0 proved browser OAuth works but n8n Cloud blocks browser MCP (no CORS), so a stateless same-origin proxy was needed (D1–D4) |
+| `4ff2f9a` Phase 2: install | Table schema, SDK-code templates for api/notify/error/analyze, Code-node logic as testable strings, idempotent installer, append-only config | The plan's deterministic core workflows; MCP lacks row updates (D5, D6) |
+| `db56080` Phase 3: dashboard | Data-plane client, event-driven dashboard store, KPI/trend/top sellers/stock/action items/insights/activity, safe markdown, draft links | Plan's fixed dashboard; reads via secret-path webhook; untrusted text never rendered as HTML |
+| `0ec4c22` Phase 4: chat agent | Default-deny gate + policy, 18 gated tools, agent loop, system prompt, persistent newest-session chat UI | Plan's hard rule that workflows never send messages, enforced in code (D8–D10) |
+| `546f67f` Phase 5: automations | Prompt + suggestion chips, analysis setup, workflow list, actions, accounts, connector search | Plan's Automations view, with everything read live from n8n |
+| `4e3a3f4` Phase 6 and 7 | Manifest, service worker (shell cache, payload-less push), push subscribe/unsubscribe, core v2 (endpoint dedupe) with in-place upgrade, settings, CSP `_headers` | Plan's push and PWA; upgrade path keeps workflow ids and VAPID keys (D7) |
+| `1c5befc` Record status | Implementation status in the plan | Hand-off traceability |
+| `b38bbe1` Rate limits + run-action tool | 429 backoff/retry, non-JSON-RPC errors, waiting execution checks, `invenstory_run_action`, prompt rules | Live test: n8n rate-limited the agent, which then improvised a runner workflow (D11, D12) |
+| `4bf3686` History repair | `repairHistory` for unanswered tool calls | Live test: a reload or lost save broke every later Claude call in the session (D13) |
+| `63f6c67` drop_block | Claude requests drop thinking blocks whose prefix changed | Live test: an app update changed prompt/tools and invalidated stored thinking signatures (D14) |
+| `f6ca5ef` Release candidate | Documentation set, `scripts/n8n.ts`, token support in `Mcp`, CI, `wrangler.toml`, `.env.example`, version 1.0.0-rc.1 | Hand-off to a second developer and their Claude; reproducible live checks without the browser relay (D15, D16) |
+
 ## Incident log (found in live testing)
 Kept so future work doesn't reintroduce them.
 
