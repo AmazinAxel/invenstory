@@ -5,7 +5,7 @@
 import { CORE_VERSION, TABLES, TABLE_NAMES, WORKFLOWS, type CoreWorkflow, type TableIds, type TableName } from './core/schema.ts';
 import { apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
 import { extractVapid, signPushCode } from './core/code.ts';
-import { MODEL_CHOICES, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
+import { MODEL_CHOICES, analyzeDirectWorkflow, analyzeWorkflow, type DirectModel, type ModelChoice } from './core/analyze.ts';
 
 export interface McpLike {
   call<T = unknown>(name: string, args?: Record<string, unknown>): Promise<T>;
@@ -20,6 +20,8 @@ export interface InstallInfo {
   workflows: Partial<Record<CoreWorkflow, string>>;
   origins: string[];
   vapidPublicKey: string;
+  /** "Provider: model" of an analysis this device set up on the owner's own model key (display only). */
+  analysisModel?: string;
 }
 
 export interface Detected {
@@ -296,4 +298,49 @@ export async function setupAnalysis(
   });
   onStep('Analysis ready.');
   return { ...info, workflows: { ...info.workflows, analyze: id } };
+}
+
+// ---------- analysis on the owner's OpenRouter login (no n8n credential) ----------
+
+const redact = (text: string, secret: string) => (secret ? text.split(secret).join('[key]') : text);
+
+/**
+ * Installs invenstory-analyze so that n8n calls the model itself with the owner's key (see
+ * analyzeDirectWorkflow). The key is written into that one workflow and nowhere else: not into
+ * inv_config, not into an error message.
+ */
+export async function setupDirectAnalysis(mcp: McpLike, info: InstallInfo, direct: DirectModel, onStep: Step = () => {}): Promise<InstallInfo> {
+  if (!info.workflows.notify || !info.workflows.error) throw new Error('Install Invenstory first.');
+  onStep('Installing analysis…');
+  try {
+    const code = analyzeDirectWorkflow({ tables: info.tables, notifyId: info.workflows.notify, direct });
+    const old = info.workflows.analyze;
+    const id = await createWorkflow(mcp, info.projectId, WORKFLOWS.analyze, 'Invenstory core: analyses stock and sales and proposes action items.', code);
+    await setErrorWorkflow(mcp, id, info.workflows.error);
+    if (old && old !== id) await mcp.call('archive_workflow', { workflowId: old });
+    const analysisModel = `${direct.label}: ${direct.model}`;
+    await appendConfig(mcp, { projectId: info.projectId, tableId: info.tables.inv_config }, { analyze_workflow_id: id, analysis_model: analysisModel });
+    onStep('Analysis ready.');
+    return { ...info, workflows: { ...info.workflows, analyze: id }, analysisModel };
+  } catch (e) {
+    // n8n can quote the submitted workflow code in an error message: keep the key out of the UI.
+    throw new Error(redact(e instanceof Error ? e.message : String(e), direct.apiKey));
+  }
+}
+
+/**
+ * Uses an analysis workflow that already exists in n8n (set up from another device, or left by
+ * a setup that was interrupted) instead of creating a second one. Returns null when there is none.
+ */
+export async function adoptAnalysis(mcp: McpLike, info: InstallInfo): Promise<InstallInfo | null> {
+  const wfs = await mcp.call<{ data: { id: string; name: string; isArchived?: boolean }[] }>('search_workflows', { query: WORKFLOWS.analyze, limit: 20 });
+  const found = wfs.data.find((w) => w.name === WORKFLOWS.analyze && !w.isArchived)?.id;
+  if (!found) return null;
+  const config = await readConfig(mcp, info.projectId, info.tables.inv_config);
+  if (config.analyze_workflow_id !== found) {
+    // An interrupted setup: finish its last two steps so "run analysis" and failure alerts work.
+    if (info.workflows.error) await setErrorWorkflow(mcp, found, info.workflows.error);
+    await appendConfig(mcp, { projectId: info.projectId, tableId: info.tables.inv_config }, { analyze_workflow_id: found });
+  }
+  return { ...info, workflows: { ...info.workflows, analyze: found } };
 }

@@ -1,10 +1,15 @@
-// invenstory-analyze: aggregates the tables, asks the user's n8n LLM credential for an
-// insight plus up to five action items (structured output), stores a new session, and
-// signals devices when there are new items.
+// invenstory-analyze: aggregates the tables, asks a model for an insight plus up to five action
+// items (structured output), stores a new session, and signals devices when there are new items.
+//
+// Two variants reach the model. Both share every other node:
+// - direct: an HTTP Request node calls OpenRouter with the key from the owner's OpenRouter login,
+//   so nothing has to be created in n8n by hand (see the direct-analysis ADR in docs/adr/).
+// - credential: an LLM chain bound to an LLM credential the owner created in n8n.
 
-import { ANALYSIS_FACTS, ANALYSIS_RECORDS, codeNode } from './code.ts';
+import { ANALYSIS_FACTS, ANALYSIS_RECORDS, ANALYSIS_REPLY, ANALYSIS_REQUEST, codeNode } from './code.ts';
 import { WORKFLOWS, type TableIds } from './schema.ts';
 import { code, dtGet, dtInsert, ex, program, runSub, type NodeSpec } from './sdk.ts';
+import type { LlmConfig } from '../../llm/types.ts';
 
 export interface ModelChoice {
   credentialType: string;
@@ -104,8 +109,12 @@ const SAMPLE_ITEM = {
 
 const all = (node: string) => `$('${node}').all().map(function (i) { return i.json; })`;
 
-export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model }: AnalyzeParams): string {
-  const nodes: NodeSpec[] = [
+/** What the "Prepare Facts" Code node reads from the table nodes before it. */
+const FACTS_INPUT = `products: ${all('Products')}, sales: ${all('Sales (90 days)')}, items: ${all('Open Items')}, sessions: [], messages: [], config: ${all('Config')}, registry: ${all('Registered Actions')}, period: '30d', now: new Date().toISOString()`;
+
+/** Trigger and table reads, shared by both variants. */
+function sources(t: TableIds): NodeSpec[] {
+  return [
     {
       v: 'start',
       kind: 'trigger',
@@ -120,46 +129,12 @@ export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model
     dtGet('openItems', 'Open Items', t.inv_action_items, { where: [['status', 'eq', 'open']] }),
     dtGet('config', 'Config', t.inv_config),
     dtGet('registry', 'Registered Actions', t.inv_actions),
-    code(
-      'facts',
-      'Prepare Facts',
-      codeNode(
-        ANALYSIS_FACTS,
-        `{ products: ${all('Products')}, sales: ${all('Sales (90 days)')}, items: ${all('Open Items')}, sessions: [], messages: [], config: ${all('Config')}, registry: ${all('Registered Actions')}, period: '30d', now: new Date().toISOString() }`,
-      ),
-      [{ facts: '{}', registry: [], registry_json: '[]' }],
-    ),
-    {
-      v: 'model',
-      kind: 'languageModel',
-      type: choice.node,
-      version: choice.version,
-      name: 'Analysis Model',
-      parameters: choice.parameters(model),
-      credentials: { [choice.credentialType]: credential },
-    },
-    {
-      v: 'parser',
-      kind: 'outputParser',
-      type: '@n8n/n8n-nodes-langchain.outputParserStructured',
-      version: 1.3,
-      name: 'Insight Format',
-      parameters: { schemaType: 'manual', inputSchema: JSON.stringify(ANALYSIS_SCHEMA) },
-    },
-    {
-      v: 'analyst',
-      type: '@n8n/n8n-nodes-langchain.chainLlm',
-      version: 1.9,
-      name: 'Analyst',
-      parameters: {
-        promptType: 'define',
-        text: ex('Facts:\n{{ $json.facts }}\n\nRegistered actions:\n{{ $json.registry_json }}'),
-        hasOutputParser: true,
-        messages: { messageValues: [{ type: 'SystemMessagePromptTemplate', message: ANALYSIS_SYSTEM }] },
-      },
-      subnodes: { model: 'model', outputParser: 'parser' },
-      output: [{ output: { insight: 'Sales are up.', items: [] } }],
-    },
+  ];
+}
+
+/** Validation of the model's answer, the rows it becomes, and the device signal: shared by both variants. */
+function sinks(t: TableIds, notifyId: string): NodeSpec[] {
+  return [
     code(
       'records',
       'Build Records',
@@ -214,23 +189,131 @@ export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model
     code('notice', 'Notice', "return [{ json: $('Build Records').first().json.notice }];", [{ kind: 'action_items', title: '1 new action item', body: '' }]),
     { ...runSub('notify', 'Notify Devices', notifyId, false), settings: { executeOnce: true } },
   ];
+}
+
+const compose = (steps: string[]) =>
+  `export default workflow(${JSON.stringify(WORKFLOWS.analyze)}, ${JSON.stringify(WORKFLOWS.analyze)})\n  .add(start)\n${steps.map((s) => `  .to(${s})`).join('\n')};`;
+
+const READS = ['products', 'sales', 'openItems', 'config', 'registry'];
+const WRITES = ['records', 'saveSession', 'saveInsight', 'splitItems', 'saveItems', 'notice', 'notify'];
+
+/** Credential variant: an LLM chain bound to an LLM credential the owner created in n8n. */
+export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model }: AnalyzeParams): string {
+  const nodes: NodeSpec[] = [
+    ...sources(t),
+    code('facts', 'Prepare Facts', codeNode(ANALYSIS_FACTS, `{ ${FACTS_INPUT} }`), [{ facts: '{}', registry: [], registry_json: '[]' }]),
+    {
+      v: 'model',
+      kind: 'languageModel',
+      type: choice.node,
+      version: choice.version,
+      name: 'Analysis Model',
+      parameters: choice.parameters(model),
+      credentials: { [choice.credentialType]: credential },
+    },
+    {
+      v: 'parser',
+      kind: 'outputParser',
+      type: '@n8n/n8n-nodes-langchain.outputParserStructured',
+      version: 1.3,
+      name: 'Insight Format',
+      parameters: { schemaType: 'manual', inputSchema: JSON.stringify(ANALYSIS_SCHEMA) },
+    },
+    {
+      v: 'analyst',
+      type: '@n8n/n8n-nodes-langchain.chainLlm',
+      version: 1.9,
+      name: 'Analyst',
+      parameters: {
+        promptType: 'define',
+        text: ex('Facts:\n{{ $json.facts }}\n\nRegistered actions:\n{{ $json.registry_json }}'),
+        hasOutputParser: true,
+        messages: { messageValues: [{ type: 'SystemMessagePromptTemplate', message: ANALYSIS_SYSTEM }] },
+      },
+      subnodes: { model: 'model', outputParser: 'parser' },
+      output: [{ output: { insight: 'Sales are up.', items: [] } }],
+    },
+    ...sinks(t, notifyId),
+  ];
   // Analyst is a node with sub-nodes: the sub-nodes are declared before it.
   const ordered = [...nodes.filter((n) => n.v === 'model' || n.v === 'parser'), ...nodes.filter((n) => n.v !== 'model' && n.v !== 'parser')];
-  const composition = `export default workflow(${JSON.stringify(WORKFLOWS.analyze)}, ${JSON.stringify(WORKFLOWS.analyze)})
-  .add(start)
-  .to(products)
-  .to(sales)
-  .to(openItems)
-  .to(config)
-  .to(registry)
-  .to(facts)
-  .to(analyst)
-  .to(records)
-  .to(saveSession)
-  .to(saveInsight)
-  .to(splitItems)
-  .to(saveItems)
-  .to(notice)
-  .to(notify);`;
-  return program(ordered, composition);
+  return program(ordered, compose([...READS, 'facts', 'analyst', ...WRITES]));
+}
+
+// ---------- direct variant (OpenRouter key from the owner's login) ----------
+
+/** Small, cheap and good at structured answers; analysis can run many times a day. */
+export const OPENROUTER_ANALYSIS_MODEL = 'anthropic/claude-haiku-5.5';
+
+/** A model endpoint n8n can call by itself. The key ends up inside the analysis workflow. */
+export interface DirectModel {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  label: string;
+}
+
+/**
+ * The app's model connection, if n8n may use it for analysis: OpenRouter only. Other providers'
+ * keys stay on the device (the key form promises that), and n8n cannot reach a local Ollama.
+ */
+export function directModel(llm: LlmConfig | null | undefined): DirectModel | null {
+  if (!llm || llm.protocol !== 'openai' || !llm.apiKey.trim()) return null;
+  let url: URL;
+  try {
+    url = new URL(llm.baseUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'openrouter.ai') return null;
+  return { baseUrl: llm.baseUrl.replace(/\/+$/, ''), apiKey: llm.apiKey.trim(), model: OPENROUTER_ANALYSIS_MODEL, label: 'OpenRouter' };
+}
+
+export interface AnalyzeDirectParams {
+  tables: TableIds;
+  notifyId: string;
+  direct: DirectModel;
+}
+
+/** Direct variant: one HTTP Request to the provider's chat-completions endpoint, no n8n credential. */
+export function analyzeDirectWorkflow({ tables: t, notifyId, direct }: AnalyzeDirectParams): string {
+  const nodes: NodeSpec[] = [
+    ...sources(t),
+    code(
+      'facts',
+      'Prepare Facts',
+      codeNode(ANALYSIS_REQUEST, `{ ${FACTS_INPUT}, model: ${JSON.stringify(direct.model)}, system: ${JSON.stringify(ANALYSIS_SYSTEM)}, schema: ${JSON.stringify(ANALYSIS_SCHEMA)} }`),
+      [{ facts: '{}', registry: [], registry_json: '[]', body: { model: direct.model, messages: [] } }],
+    ),
+    {
+      v: 'analyst',
+      type: 'n8n-nodes-base.httpRequest',
+      version: 4.5,
+      name: 'Analyst',
+      // One retry covers a rate limit or a provider hiccup; a wrong key or empty balance fails fast.
+      settings: { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 },
+      parameters: {
+        method: 'POST',
+        url: `${direct.baseUrl}/chat/completions`,
+        sendHeaders: true,
+        specifyHeaders: 'keypair',
+        headerParameters: {
+          parameters: [
+            // The owner's key, kept only here (never in a table, config row or node output).
+            { name: 'Authorization', value: `Bearer ${direct.apiKey}` },
+            { name: 'X-Title', value: 'Invenstory' },
+          ],
+        },
+        sendBody: true,
+        contentType: 'json',
+        specifyBody: 'json',
+        jsonBody: ex('{{ JSON.stringify($json.body) }}'),
+        options: { timeout: 120000 },
+      },
+      output: [{ choices: [{ message: { role: 'assistant', content: '{"insight":"Sales are up.","items":[]}' }, finish_reason: 'stop' }] }],
+    },
+    code('reply', 'Read Reply', codeNode(ANALYSIS_REPLY, '{ response: $input.first().json }'), [{ output: { insight: 'Sales are up.', items: [] } }]),
+    ...sinks(t, notifyId),
+  ];
+  return program(nodes, compose([...READS, 'facts', 'analyst', 'reply', ...WRITES]));
 }

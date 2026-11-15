@@ -13,7 +13,7 @@
  │  ├ automations ┘              │                        │   data-table rows (append/read)        │
  │  ├ dashboard ─────────────────┼── HTTPS GET/POST ─────▶│ /webhook/inv-<secret>  invenstory-api  │
  │  └ service worker ◀── push ───┼── FCM/APNs ◀── VAPID ──│ invenstory-notify (Code node signs)    │
- │                               │                        │ invenstory-analyze (n8n LLM credential)│
+ │                               │                        │ invenstory-analyze (model key or cred.)│
  │  IndexedDB: tokens, LLM key,  │                        │ data tables inv_* (the only store)     │
  │   voice key (optional)        │                        │                                        │
  └──────────────┬───────────────┘                        └──────────────────────────────────────┘
@@ -33,7 +33,8 @@ Three channels from the browser (plus optional voice):
    OpenAI, Gemini's OpenAI endpoint, OpenRouter, xAI, Groq).
 4. **Voice** (optional, only with a voice key on the device): ElevenLabs REST + realtime WebSocket, see Voice below.
 
-Analysis does **not** use the app's LLM key: it runs inside n8n on an LLM credential the user creates in n8n.
+Analysis runs inside n8n. With an OpenRouter login the app installs it with that key (direct variant, no n8n
+credential, see below); with any other connection it runs on an LLM credential the owner creates in n8n.
 
 ## The `/mcp` proxy (`src/server/mcp-proxy.ts`, mounted by `functions/mcp.ts` and `vite.config.ts`)
 - Accepts POST/GET/DELETE on `/mcp`; the target comes from header `x-n8n-instance: <https origin>`.
@@ -92,12 +93,21 @@ HTTP Request POST, payload-less, `TTL: 86400` → delete rows answering 404/410.
 Error Trigger → describe failure → notify (`kind: failure`). Set as `errorWorkflow` on api, analyze and every
 agent-built workflow. Not set on notify (would loop).
 
-### `invenstory-analyze` (`analyze.ts`, installed later from Automations once an LLM credential exists)
-Trigger → products, sales (90 d), open items, config, registered actions → `ANALYSIS_FACTS` Code (compact JSON) →
-Basic LLM Chain with the chat-model node matching the credential type (`MODEL_CHOICES`; Anthropic uses
-`claude-opus-5-5`, adaptive thinking, effort medium) and a Structured Output Parser (`ANALYSIS_SCHEMA`) →
+### `invenstory-analyze` (`analyze.ts`; two variants that share every node except the model call)
+Trigger → products, sales (90 d), open items, config, registered actions → facts Code (compact JSON) → model →
 `ANALYSIS_RECORDS` Code validates (≤5 items; `run` only for registered workflow ids; drafts limited to
 email/whatsapp/sms) → new session + insight message + action items → notify if items were created.
+- **Direct variant** (`analyzeDirectWorkflow`, installed by itself when the app is connected through OpenRouter;
+  `src/state/analysis.svelte.ts`, `setupDirectAnalysis`): `ANALYSIS_REQUEST` Code builds a chat-completions body (same
+  prompt, the schema quoted in the system message, `response_format: json_object`) → HTTP Request `POST
+  https://openrouter.ai/api/v1/chat/completions` with the owner's key in the `Authorization` header (120 s timeout,
+  one retry) → `ANALYSIS_REPLY` Code extracts the JSON object (tolerates code fences and prose, throws otherwise so
+  the error workflow notifies). No n8n credential and no Gateway credits. The key lives only in that node; the chat
+  agent cannot read core workflows or their runs (`refuseCore`). A second device adopts the existing workflow
+  (`adoptAnalysis`) instead of creating another.
+- **Credential variant** (`analyzeWorkflow`, from Automations for any other connection): `ANALYSIS_FACTS` Code →
+  Basic LLM Chain with the chat-model node matching the credential type (`MODEL_CHOICES`; Anthropic uses
+  `claude-opus-5-5`, adaptive thinking, effort medium) and a Structured Output Parser (`ANALYSIS_SCHEMA`).
 
 ## Safety gate (`src/lib/n8n/policy.ts`, `gate.ts`)
 Checked after every create/update by the agent and before every publish, test, run and action registration. Default-deny.

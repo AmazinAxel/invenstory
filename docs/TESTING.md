@@ -52,6 +52,7 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 | Re-run install is idempotent; in-place core upgrade v1 → v2 keeps ids and VAPID keys | pass | relay |
 | API reads summary/stock/notice and every POST op incl. refusals | pass, numbers hand-checked | curl |
 | `invenstory-analyze` SDK code validates for Anthropic/OpenAI/Gemini credentials | pass (validation only) | relay |
+| `invenstory-analyze` direct variant (OpenRouter over HTTP): node configs and wiring validate | pass (validation only; one expected `HARDCODED_CREDENTIALS` warning) | 2026-11-15, n8n MCP `validate_workflow` with a placeholder key |
 | Dashboard rendering, period switch, trend tooltip, stock search, action item tap/dismiss | pass | team lead in browser |
 | Chat: onboarding interview, custom prompts, figures quoted from the snapshot | pass | team lead |
 | Chat built "Create starter sheet", products sync, sales sync (gate passed, tested with pin data, run, published) | pass | inspected node by node in n8n |
@@ -62,8 +63,12 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 ## 4. Not verified yet (do these before calling it 1.0.0)
 1. Chat after the `drop_block` fix (send any message in the existing session; expect no error).
 2. `invenstory_run_action` from chat ("I sold 1 travel mug").
-3. Analysis: add an LLM credential in n8n → Automations → Set up analysis → Run analysis now ⇒ new session with
-   insight + action items; draft item opens the mail app; run item executes.
+3. Analysis. With an OpenRouter login: open the app ⇒ Automations → Analysis shows "Setting up analysis…" and then
+   "Analysis runs in n8n after data changes." without any step in n8n (a second device adopts the same workflow and
+   creates nothing). With any other connection: add an LLM credential in n8n → Automations → Set up analysis. Then
+   Run analysis now ⇒ new session with insight + action items; draft item opens the mail app; run item executes.
+   Also check: an OpenRouter key without credits ⇒ a failure notification with the provider's message; asking the
+   chat to "show me the invenstory-analyze workflow" ⇒ refused, and the key appears nowhere in the chat.
 4. Push: Dashboard → "Turn on notifications" card (shown once) → run analysis with the app in the background ⇒ notification;
    with the app focused ⇒ silent refresh. Failure push: break a test workflow on purpose.
 5. Second device / teammate: log in on another browser → Install reuses everything (same project) → same dashboard

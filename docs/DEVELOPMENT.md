@@ -50,6 +50,13 @@ OpenAI-compatible: add a preset to `OPENAI_PRESETS` in `openai.ts`. Anything els
 `MODEL_CHOICES` in `core/analyze.ts` (credential type → chat-model node, version, parameter builder). Validate the
 generated workflow against n8n with a dummy credential id.
 
+### Change how analysis reaches the model
+`core/analyze.ts` has two variants built from the same node lists (`sources`, `sinks`): `analyzeWorkflow` (n8n
+credential) and `analyzeDirectWorkflow` (HTTP Request to OpenRouter with the owner's key, set up by
+`src/state/analysis.svelte.ts`). Keep the credential variant's output byte-identical unless you also bump
+`CORE_VERSION`. Validate the direct one with `bun run n8n validate analyze-direct` (placeholder key). Never put a real
+key in a test, a fixture, a log or `inv_config`; `test/analysis.test.ts` checks the key appears once, in the header.
+
 ## Deploy (not done yet)
 ```bash
 bun run release

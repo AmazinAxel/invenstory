@@ -48,7 +48,7 @@ Snapshot as of 2026-11-15. **No secrets are in this repository.** Secrets live i
 | invenstory-api | `vTMTKFtVi8WYqPzi` | active; allowed origin `http://localhost:5173` |
 | invenstory-notify | `dyxKYigRmmdoG1pY` | active, core v2 |
 | invenstory-error | `pEytbdBqf24n5o5G` | active |
-| invenstory-analyze | not installed | needs an LLM credential in n8n, then Automations → Set up analysis |
+| invenstory-analyze | not installed | installs itself on the next app start when the app is connected through OpenRouter; otherwise needs an LLM credential in n8n, then Automations → Set up analysis |
 
 ### Agent-built workflows (created through chat)
 | Workflow | id | State |
@@ -90,6 +90,10 @@ and Sales. Share it with a teammate in Google Drive if they need to edit it.
 ## Accepted risks (from the plan)
 - Anyone holding the secret webhook URL can read business data and chat history and trigger registered runs.
 - Secrets sit unencrypted in browser storage.
+- With an OpenRouter login, the owner's OpenRouter key is also stored in plain text inside the `Analyst` node of
+  `invenstory-analyze` in their n8n (so analysis runs while the app is closed). Anyone who can open that workflow, its
+  history or an archived copy can read it, and it passes once through the `/mcp` proxy at setup. Owner's decision, to
+  be stated in the terms. Rotate by revoking the key at OpenRouter, logging in again and using "Set up again".
 - The MCP bearer token transits the `/mcp` proxy (whoever operates the deployment could read it).
 - Gate node lists need upkeep; unlisted connectors are refused until added.
 - n8n workflow building via MCP is preview-grade; iPhone push requires the PWA installed to the Home Screen.

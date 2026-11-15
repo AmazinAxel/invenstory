@@ -193,6 +193,56 @@ function run(input) {
 }
 `;
 
+/**
+ * Facts plus the chat-completions request body, for the analysis variant that calls the model
+ * over HTTP with the owner's OpenRouter key. The prompt is the same as the LLM-chain variant's;
+ * the reply format is asked for in words because JSON-schema output is not universal.
+ */
+export const ANALYSIS_REQUEST = ANALYSIS_FACTS.replace('function run(input)', 'function prepare(input)') + String.raw`
+function run(input) {
+  var f = prepare(input);
+  var system = String(input.system || '') + '\nReply with one JSON object and nothing else: no code fences, no commentary. It must match this JSON Schema:\n' + JSON.stringify(input.schema || {});
+  f.body = {
+    model: input.model,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: 'Facts:\n' + f.facts + '\n\nRegistered actions:\n' + f.registry_json }
+    ],
+    response_format: { type: 'json_object' }
+  };
+  return f;
+}
+`;
+
+/**
+ * Reads the model's reply from a chat-completions response. Tolerates code fences and prose
+ * around the JSON; fails loudly otherwise so the error workflow tells the owner.
+ */
+export const ANALYSIS_REPLY = SHARED + String.raw`
+function isObject(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+function extract(text) {
+  var t = String(text || '');
+  var direct = parseJson(t, null);
+  if (isObject(direct)) return direct;
+  var a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  var inner = parseJson(t.slice(a, b + 1), null);
+  return isObject(inner) ? inner : null;
+}
+function run(input) {
+  var r = input.response;
+  if (typeof r === 'string') r = parseJson(r, {});
+  if (!isObject(r)) r = {};
+  if (r.error) throw new Error('The analysis model answered with an error: ' + String((isObject(r.error) && r.error.message) || r.error).slice(0, 300));
+  var choice = (Array.isArray(r.choices) ? r.choices[0] : null) || {};
+  var content = choice.message ? choice.message.content : '';
+  if (Array.isArray(content)) content = content.map(function (p) { return p && typeof p.text === 'string' ? p.text : ''; }).join('');
+  var out = extract(content);
+  if (!out) throw new Error(choice.finish_reason === 'length' ? 'The analysis model ran out of room before it finished its answer.' : 'The analysis model did not answer with JSON.');
+  return { output: out };
+}
+`;
+
 /** Validates the model's structured output and shapes session, message and item rows. */
 export const ANALYSIS_RECORDS = SHARED + String.raw`
 function run(input) {

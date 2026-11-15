@@ -3,7 +3,7 @@
 // tested, executed or registered. Core workflows are off limits.
 
 import type { ToolDef } from '../llm/types.ts';
-import { resultText, type Mcp, type ToolResult } from '../n8n/mcp.ts';
+import { resultData, resultText, type Mcp, type ToolResult } from '../n8n/mcp.ts';
 import { checkWorkflow, describeViolations, type GateWorkflow } from '../n8n/gate.ts';
 import { CALLABLE_CORE } from '../n8n/policy.ts';
 import { TABLES, WORKFLOWS } from '../n8n/core/schema.ts';
@@ -66,6 +66,17 @@ async function raw(ctx: AgentContext, name: string, args: Record<string, unknown
 
 function coreIds(ctx: AgentContext): Set<string> {
   return new Set(Object.values(ctx.install.workflows).filter(Boolean) as string[]);
+}
+
+const CORE_NAMES = new Set<string>(Object.values(WORKFLOWS));
+const CORE_PRIVATE = 'Core Invenstory workflows are managed by the app and cannot be read from chat.';
+
+/**
+ * Core workflows hold secrets (the push signing key, the owner's model key in invenstory-analyze).
+ * Their contents and run data must never reach the model, the chat history or the LLM provider.
+ */
+function refuseCore(ctx: AgentContext, workflowId: unknown) {
+  if (typeof workflowId === 'string' && coreIds(ctx).has(workflowId)) throw new ToolFailure(CORE_PRIVATE, true);
 }
 
 interface Details {
@@ -159,7 +170,15 @@ const TOOLS: AgentTool[] = [
       schema: obj({ workflowId: s('workflow id') }, ['workflowId']),
     },
     label: () => 'Reading a workflow',
-    run: (i, ctx) => raw(ctx, 'get_workflow_details', { workflowId: i.workflowId }, true),
+    run: async (i, ctx) => {
+      refuseCore(ctx, i.workflowId);
+      const r = await ctx.mcp.callTool('get_workflow_details', { workflowId: i.workflowId });
+      // A core workflow this device does not know by id (set up from another device) is recognised by its name.
+      const data = r.isError ? undefined : resultData<{ workflow?: { name?: unknown } } | string>(r);
+      const name = typeof data === 'object' && data ? data.workflow?.name : undefined;
+      if (typeof name === 'string' && CORE_NAMES.has(name)) throw new ToolFailure(CORE_PRIVATE, true);
+      return asOutcome(r, true);
+    },
   },
   {
     def: {
@@ -285,6 +304,7 @@ const TOOLS: AgentTool[] = [
     },
     label: () => 'Checking the run',
     run: async (i, ctx) => {
+      refuseCore(ctx, i.workflowId); // a failed run's data includes the failing node's parameters
       // Waits for a running execution (up to ~40 s) so the model does not poll in a loop.
       const args = { workflowId: i.workflowId, executionId: i.executionId };
       for (let n = 0; n < 8; n++) {

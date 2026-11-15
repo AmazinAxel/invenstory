@@ -31,6 +31,9 @@ the secret-path `invenstory-api` webhook (data plane), and the LLM provider (cha
   `thinking.block_binding.prefix_mismatch_behavior: "drop_block"` so prompt/tool changes don't break old sessions.
 - **LLM calls are plain `fetch`** (two adapters, `src/lib/llm/`). No SDKs: the plan forbids runtime deps beyond svelte.
   Claude defaults: `claude-opus-5-5`, API version `2026-10-21`, no temperature, `fallbacks: "default"`.
+- **`invenstory-analyze` can hold the owner's OpenRouter key** (direct variant, in the `Analyst` node's header). Never
+  read core workflows or their executions into a chat, a log, a commit or a test fixture; `refuseCore` in `tools.ts`
+  enforces it for the agent. Never write that key anywhere else (no `inv_config`, no error text).
 - n8n MCP has no row update/delete tools: `inv_config` and `inv_actions` are append-only (newest row wins).
   Row deletes need an n8n workflow with a Data table node.
 
@@ -47,7 +50,7 @@ Bugs found in live testing go into the CHANGELOG incident log.
 - `src/lib/llm/` adapters; `src/lib/sse.ts` shared SSE parser
 - `src/lib/voice/` optional voice mode (ElevenLabs engines behind `SttEngine`/`TtsEngine`, mic, playback, sentence
   chunker); orchestration in `src/state/voice.svelte.ts`; AudioWorklet `public/voice-capture.js`. See the voice ADR in docs/adr/
-- `src/state/` runes stores (app, dashboard, chat, voice) + pure `chat-history.ts`
+- `src/state/` runes stores (app, dashboard, chat, voice, analysis) + pure `chat-history.ts`
 - `src/views/`, `src/ui/` Svelte components; `public/sw.js` service worker
 - `scripts/n8n.ts` terminal access to n8n; `spike/` (gitignored) was Phase 0's throwaway browser relay
 

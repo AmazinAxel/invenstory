@@ -89,4 +89,4 @@
 {/if}
 <button class="primary" disabled={busy} onclick={testAndSave}>{busy ? 'Testing…' : 'Test and save'}</button>
 {#if result}<p class="small {result.ok ? 'ok' : 'error'}" role={result.ok ? 'status' : 'alert'}>{result.text}</p>{/if}
-<p class="muted small">The key stays on this device.</p>
+<p class="muted small">The key stays on this device. An OpenRouter key is also saved in your n8n, so analysis can run while the app is closed.</p>

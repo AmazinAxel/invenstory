@@ -14,7 +14,7 @@ provider, production deploy, live gate refusal, last two fixes) still need a liv
 | 1 | Install lives in the logged-in user's **personal** project | A teammate with a different n8n user gets separate tables | Let the installer pick a project (`search_projects` → team project), store `projectId` choice |
 | 2 | Hourly syncs run even without changes; the dashboard costs one execution per refresh | Execution quota on n8n Cloud | Longer schedule, app triggers (Sheets trigger), or MCP row reads for the dashboard |
 | 3 | Sheets sync maps a blank reorder point to 0 | No low-stock flag until 0 | Ask chat to map blanks to empty (null) |
-| 4 | Ingest does not call analysis yet (no LLM credential) | No automatic insights | After analysis setup, ask chat to call `invenstory-analyze` **only when rows changed** |
+| 4 | Ingest does not call analysis yet (the sync automations were built before analysis existed; it now installs itself with an OpenRouter login) | No automatic insights | After analysis setup, ask chat to call `invenstory-analyze` **only when rows changed** |
 | 5 | `inv_sales` is insert-only | Deleting a sale in the Sheet doesn't remove it in Invenstory | Cleanup workflow (chat can build one) or a reconcile step |
 | 6 | Chat persistence is fire-and-forget; a failed save shows an error but the row is lost | `repairHistory` covers tool calls; a lost text message is just missing | Retry queue in `chat.persist` |
 | 7 | `scripts/n8n.ts` not yet run with a real MCP access token | Terminal tool unproven past auth | First teammate run: `bun run n8n state` |
