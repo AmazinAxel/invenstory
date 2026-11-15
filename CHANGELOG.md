@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Accessibility and startup cost (UI audit P1s): text fields, the stock search and the chat composer get a
+  `--control-line` border with at least 3:1 contrast in both themes (was 1.28:1, WCAG 1.4.11). The Automations tab loads its
+  n8n data and AI ideas on first visit instead of at app start. Why: fields were hard to find for low-vision users, and
+  hidden-tab loads spent rate-limited n8n MCP calls and an LLM call on every launch.
 - Chat shows outcomes, not process: each assistant turn's tool steps fold into one expandable "N steps" line (safety
   gate refusals stay visible; the fold opens when a turn ends without a reply), and only the turn's last text shows.
   The system prompt asks for at most 3 plain sentences, says "automation" instead of workflow/node/ids, and requires

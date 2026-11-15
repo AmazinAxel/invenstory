@@ -50,7 +50,7 @@
   <main>
     <div hidden={tab !== 'dashboard'}><Dashboard onchat={() => select('chat')} /></div>
     <div hidden={tab !== 'chat'}><Chat active={tab === 'chat'} /></div>
-    <div hidden={tab !== 'automations'}><Automations onchat={() => select('chat')} /></div>
+    <div hidden={tab !== 'automations'}><Automations active={tab === 'automations'} onchat={() => select('chat')} /></div>
   </main>
   <TabBar {tab} onselect={select} badge={{ dashboard: dashboard.data?.action_items.length ?? 0 }} />
 {/if}

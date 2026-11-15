@@ -84,7 +84,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--control-line);
     border-radius: 8px;
     padding: 0 10px;
     background: var(--bg);

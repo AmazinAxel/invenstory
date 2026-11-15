@@ -4,6 +4,7 @@
   --text: #1c1c1a;
   --muted: #6b6b66;
   --line: #e4e4df;
+  --control-line: #8a8a84; /* field borders: ≥3:1 on --surface and --bg (WCAG 1.4.11) */
   --accent: #0f766e;
   --accent-text: #ffffff;
   --danger: #b42318;
@@ -22,6 +23,7 @@
     --text: #ededea;
     --muted: #a0a09a;
     --line: #2e2e2b;
+    --control-line: #72726c;
     --accent: #2dd4bf;
     --accent-text: #08201d;
     --danger: #f97066;
@@ -84,6 +86,13 @@ a {
 .ok {
   color: var(--ok);
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
 
 .card {
   background: var(--surface);
@@ -119,7 +128,7 @@ textarea {
   font: inherit;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-line);
   border-radius: 8px;
   padding: 10px 12px;
   min-height: 44px;
