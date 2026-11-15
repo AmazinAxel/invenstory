@@ -82,4 +82,7 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 6. Automations → analysis setup → run → insight + items → tap a draft (mail app opens, item disappears).
 7. Notifications on, background the tab, run analysis → notification arrives.
 8. Reload mid-chat → conversation reloads; sending again works (history repair).
+9. On a phone, send a long prompt and watch the reply stream without touching the screen: it must keep following and
+   "Jump to latest" must NOT appear. Then scroll up mid-stream: following stops and the button appears; tap it to resume.
+   (Real frames matter: a hidden browser pane fires no scroll events, so check on a phone or the iOS Simulator.)
 Report any red error text verbatim; most bugs so far were found exactly that way.

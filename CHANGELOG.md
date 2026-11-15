@@ -5,6 +5,9 @@
   n8n" are no longer reachable once setup is done (the Setup view still has them while setup is open). Why: the owner decided
   these controls don't belong in daily use; notifications are now asked for once on the Dashboard (#13) and changed
   in the browser's site settings. To switch model or disconnect today, clear the site's data.
+- Chat keeps following a streaming reply on phones: it no longer stops after a few chunks and shows "Jump to latest" by
+  itself. Only the reader scrolling up pauses it. Why: iOS Safari delivers scroll events a frame late and overshoots
+  `scrollIntoView`, which the old at-the-bottom check mistook for the reader leaving (incident 9).
 - Notifications are asked for with a one-time "Turn on notifications" card on the Dashboard; tapping it opens the
   browser's own permission popup and enables push. It hides when push is unavailable, already on, blocked, or after
   the owner taps "Not now". Why: the Automations-tab Settings card is going away (#14), and enabling push needs a
@@ -113,7 +116,12 @@ Kept so future work doesn't reintroduce them.
    handled it correctly; keep examples in user-facing text concrete.
 8. **Chat autoscroll "didn't fire"** (issue #2). Cause found by inspection, not live repro: `scrollIntoView` aligned the
    end sentinel to the viewport bottom, which sits under the fixed composer and tab bar, so the newest message was hidden.
-   Fix: `scroll-margin-bottom` on the sentinel = tab bar + measured composer height. Verified in a browser against the
-   real Chat component (mobile 375px and desktop 1100px, composer grown to 6 lines): history loads, streaming follows,
-   scroll-up stops following and shows "Jump to latest", sending jumps down; newest message ends 12-13px above the
-   composer. Note for future checks: a hidden browser pane fires no scroll events (no frames), so dispatch them by hand.
+   Fix: `scroll-margin-bottom` on the sentinel = tab bar + measured composer height. That fixed the overlap, but a
+   desktop-browser check of the real component missed #9: the hidden browser pane fires no scroll events (no frames), so
+   scroll timing was never exercised. Check scrolling in the iOS Simulator or a visible pane with real frames.
+9. **Chat stopped following mid-stream** (issue #2, found by the owner on a phone). Two causes, both reproduced in iOS
+   WebKit: `scrollIntoView` overshoots and corrects about 47px per call, and browsers deliver the scroll event a frame
+   late, after the next chunk has grown the page, so "not at the bottom" was read as the reader scrolling up and
+   `pinned` went false for good. Fix: `toBottom` scrolls to a computed position with `scrollTo`, and `nextPinned`
+   (`lib/scroll.ts`) lets only an upward scrollY move unpin. Verified in the simulator: the gap above the composer stays
+   constant over a 150-chunk stream, a finger swipe unpins, and "Jump to latest" re-pins.
