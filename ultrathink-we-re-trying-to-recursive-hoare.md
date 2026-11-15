@@ -143,3 +143,9 @@ n8n Cloud instance URL on 2.36+ with instance-level MCP enabled; an LLM credenti
 - The gate's node lists need upkeep; unlisted connectors are refused until added.
 - n8n workflow building via MCP is in public preview; iPhone push needs the PWA installed.
 - n8n data tables have a size cap; large sales histories may need pruning later.
+
+## Implementation status (2026-11-14)
+- Phases 0–7 implemented on branch `invenstory`; `bun run check`, `bun test` (59 tests), `bun run build` pass.
+- Verified live against n8n Cloud: install of all tables and core workflows (api, notify, error), API reads (summary, stock, notice) and writes (item.done/dismiss/run refusal, analyze, push.unsubscribe, unknown op), analysis workflow validation for Anthropic/OpenAI/Gemini credentials, in-place core upgrade (v1 → v2).
+- Not yet verified end to end in the app: login on the app origin, chat building an ingest workflow, analysis run (needs an LLM credential in n8n), push from notify to the installed PWA.
+- Deviations: MCP via `/mcp` proxy (see Re-plan); no MCP SDK dependency; dashboard Activity hides the API workflow's own executions; `inv_config` and `inv_actions` are append-only (newest row per key wins); the test seed rows (`source = seed`, sale ids `S1000`–`S1023`, action items `seed-1`, `seed-2`) are still in the instance.
