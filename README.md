@@ -10,6 +10,31 @@ n8n ingests and analyses the data, and a fixed dashboard shows KPIs, insights an
 
 Status: **v1.0.0-rc.1** (release candidate). See [docs/STATUS.md](docs/STATUS.md) for what is verified and what is not.
 
+## What's done and what still needs work
+
+**Done (v1.0.0-rc.1):** every phase of the plan is implemented, and these were exercised against a real n8n Cloud
+instance:
+- install of the 9 tables and core workflows, plus in-place upgrades
+- the dashboard and its API
+- chat: onboarding, building, testing and publishing Google Sheets sync workflows, running a registered action
+- the safety gate on everything the agent builds
+
+63 unit tests run in CI.
+
+**Still to verify or improve:**
+1. Live runs of analysis, push notifications (incl. a phone with the PWA installed), a second device or teammate,
+   an OpenAI-compatible provider, and a production deploy on Cloudflare Pages.
+2. Shared data for teammates: the install lives in one user's personal n8n project; it should be able to use a
+   team project.
+3. n8n execution budget: hourly syncs and dashboard reads count against the plan's quota.
+4. A quick-entry box ("sold 2 mugs") so stock changes don't need a full chat turn.
+5. Chat saves have no retry queue; very long sessions get expensive.
+6. Planned later: ElevenLabs voice, PCA views.
+
+Full list with impact and suggested fixes: [docs/STATUS.md](docs/STATUS.md).
+The original plan is kept verbatim in [`ultrathink-we-re-trying-to-recursive-hoare.md`](ultrathink-we-re-trying-to-recursive-hoare.md);
+[docs/PLAN.md](docs/PLAN.md) is the living copy with the Phase 0 results and re-plan notes.
+
 ## Quick start (development)
 
 Requirements: [bun](https://bun.sh) 1.4.4, a Chromium-based or Firefox browser, an n8n instance (n8n Cloud 2.36+ with
