@@ -124,17 +124,22 @@ const SAMPLE_ITEM = {
 
 const all = (node: string) => `$('${node}').all().map(function (i) { return i.json; })`;
 
-export const PREPARE_FACTS_CODE = codeNode(
-  ANALYSIS_FACTS,
-  `{ products: ${all('Products')}, sales: ${all('Sales (90 days)')}, items: ${all('Open Items')}, sessions: [], messages: [], config: ${all('Config')}, registry: ${all('Registered Actions')}, period: '30d', now: new Date().toISOString() }`,
-);
+/** What the "Prepare Facts" Code node reads from the table nodes before it. */
+const FACTS_INPUT = `products: ${all('Products')}, sales: ${all('Sales (90 days)')}, items: ${all('Open Items')}, sessions: [], messages: [], config: ${all('Config')}, registry: ${all('Registered Actions')}, period: '30d', now: new Date().toISOString()`;
+
+/** "Prepare Facts" of the credential variant. */
+export const PREPARE_FACTS_CODE = codeNode(ANALYSIS_FACTS, `{ ${FACTS_INPUT} }`);
+/** "Prepare Facts" of the direct variant: the facts plus the chat-completions request body. */
+export const prepareRequestCode = (model: string) =>
+  codeNode(ANALYSIS_REQUEST, `{ ${FACTS_INPUT}, model: ${JSON.stringify(model)}, system: ${JSON.stringify(ANALYSIS_SYSTEM)}, schema: ${JSON.stringify(ANALYSIS_SCHEMA)} }`);
 export const BUILD_RECORDS_CODE = codeNode(
   ANALYSIS_RECORDS,
   `{ output: $input.first().json.output, registry: $('Prepare Facts').first().json.registry, now: new Date().toISOString(), uuid: require('crypto').randomUUID(), execution_id: $execution.id }`,
 );
 
-export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model }: AnalyzeParams): string {
-  const nodes: NodeSpec[] = [
+/** Trigger and table reads, shared by both variants. */
+function sources(t: TableIds): NodeSpec[] {
+  return [
     {
       v: 'start',
       kind: 'trigger',
@@ -149,43 +154,12 @@ export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model
     dtGet('openItems', 'Open Items', t.inv_action_items, { where: [['status', 'eq', 'open']] }),
     dtGet('config', 'Config', t.inv_config),
     dtGet('registry', 'Registered Actions', t.inv_actions),
-    code(
-      'facts',
-      'Prepare Facts',
-      PREPARE_FACTS_CODE,
-      [{ facts: '{}', registry: [], registry_json: '[]' }],
-    ),
-    {
-      v: 'model',
-      kind: 'languageModel',
-      type: choice.node,
-      version: choice.version,
-      name: 'Analysis Model',
-      parameters: choice.parameters(model),
-      credentials: { [choice.credentialType]: credential },
-    },
-    {
-      v: 'parser',
-      kind: 'outputParser',
-      type: '@n8n/n8n-nodes-langchain.outputParserStructured',
-      version: 1.3,
-      name: 'Insight Format',
-      parameters: { schemaType: 'manual', inputSchema: JSON.stringify(ANALYSIS_SCHEMA) },
-    },
-    {
-      v: 'analyst',
-      type: '@n8n/n8n-nodes-langchain.chainLlm',
-      version: 1.9,
-      name: 'Analyst',
-      parameters: {
-        promptType: 'define',
-        text: ex('Facts:\n{{ $json.facts }}\n\nRegistered actions:\n{{ $json.registry_json }}'),
-        hasOutputParser: true,
-        messages: { messageValues: [{ type: 'SystemMessagePromptTemplate', message: ANALYSIS_SYSTEM }] },
-      },
-      subnodes: { model: 'model', outputParser: 'parser' },
-      output: [{ output: { insight: 'Sales are up.', items: [], invest: [] } }],
-    },
+  ];
+}
+
+/** Validation of the model's answer, the rows it becomes, and the device signal: shared by both variants. */
+function sinks(t: TableIds, notifyId: string): NodeSpec[] {
+  return [
     code(
       'records',
       'Build Records',
@@ -249,7 +223,7 @@ const WRITES = ['records', 'saveSession', 'saveInsight', 'splitItems', 'saveItem
 export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model }: AnalyzeParams): string {
   const nodes: NodeSpec[] = [
     ...sources(t),
-    code('facts', 'Prepare Facts', codeNode(ANALYSIS_FACTS, `{ ${FACTS_INPUT} }`), [{ facts: '{}', registry: [], registry_json: '[]' }]),
+    code('facts', 'Prepare Facts', PREPARE_FACTS_CODE, [{ facts: '{}', registry: [], registry_json: '[]' }]),
     {
       v: 'model',
       kind: 'languageModel',
@@ -279,7 +253,7 @@ export function analyzeWorkflow({ tables: t, notifyId, choice, credential, model
         messages: { messageValues: [{ type: 'SystemMessagePromptTemplate', message: ANALYSIS_SYSTEM }] },
       },
       subnodes: { model: 'model', outputParser: 'parser' },
-      output: [{ output: { insight: 'Sales are up.', items: [] } }],
+      output: [{ output: { insight: 'Sales are up.', items: [], invest: [] } }],
     },
     ...sinks(t, notifyId),
   ];
@@ -330,7 +304,7 @@ export function analyzeDirectWorkflow({ tables: t, notifyId, direct }: AnalyzeDi
     code(
       'facts',
       'Prepare Facts',
-      codeNode(ANALYSIS_REQUEST, `{ ${FACTS_INPUT}, model: ${JSON.stringify(direct.model)}, system: ${JSON.stringify(ANALYSIS_SYSTEM)}, schema: ${JSON.stringify(ANALYSIS_SCHEMA)} }`),
+      prepareRequestCode(direct.model),
       [{ facts: '{}', registry: [], registry_json: '[]', body: { model: direct.model, messages: [] } }],
     ),
     {
@@ -358,9 +332,9 @@ export function analyzeDirectWorkflow({ tables: t, notifyId, direct }: AnalyzeDi
         jsonBody: ex('{{ JSON.stringify($json.body) }}'),
         options: { timeout: 120000 },
       },
-      output: [{ choices: [{ message: { role: 'assistant', content: '{"insight":"Sales are up.","items":[]}' }, finish_reason: 'stop' }] }],
+      output: [{ choices: [{ message: { role: 'assistant', content: '{"insight":"Sales are up.","items":[],"invest":[]}' }, finish_reason: 'stop' }] }],
     },
-    code('reply', 'Read Reply', codeNode(ANALYSIS_REPLY, '{ response: $input.first().json }'), [{ output: { insight: 'Sales are up.', items: [] } }]),
+    code('reply', 'Read Reply', codeNode(ANALYSIS_REPLY, '{ response: $input.first().json }'), [{ output: { insight: 'Sales are up.', items: [], invest: [] } }]),
     ...sinks(t, notifyId),
   ];
   return program(nodes, compose([...READS, 'facts', 'analyst', 'reply', ...WRITES]));

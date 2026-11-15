@@ -93,7 +93,7 @@ describe('ANALYSIS_REPLY', () => {
   test('its output is what Build Records expects', () => {
     const records = load(ANALYSIS_RECORDS)({ ...run(reply(JSON.stringify(answer))), registry: [], now: '2026-11-15T12:00:00.000Z', uuid: 'u1', execution_id: '7' });
     expect(records.session).toEqual({ session_id: 'a-u1', created_at: '2026-11-15T12:00:00.000Z', origin: 'analysis', execution_id: '7' });
-    expect(JSON.parse(records.message.content)).toEqual({ type: 'insight', text: 'Mugs are low.', item_ids: ['a-u1-1'] });
+    expect(JSON.parse(records.message.content)).toEqual({ type: 'insight', text: 'Mugs are low.', item_ids: ['a-u1-1'], invest: [] });
     expect(records.items[0]).toMatchObject({ title: 'Reorder mugs', kind: 'draft', draft_channel: 'email', status: 'open' });
   });
 });

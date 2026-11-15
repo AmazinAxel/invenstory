@@ -5,7 +5,19 @@
 import { CORE_VERSION, TABLES, TABLE_NAMES, WORKFLOWS, type CoreWorkflow, type TableIds, type TableName } from './core/schema.ts';
 import { BUILD_SUMMARY_CODE, SUMMARY_SALES_SINCE, apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
 import { extractVapid, signPushCode } from './core/code.ts';
-import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, BUILD_RECORDS_CODE, MODEL_CHOICES, PREPARE_FACTS_CODE, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
+import {
+  ANALYSIS_SCHEMA,
+  ANALYSIS_SYSTEM,
+  BUILD_RECORDS_CODE,
+  MODEL_CHOICES,
+  OPENROUTER_ANALYSIS_MODEL,
+  PREPARE_FACTS_CODE,
+  analyzeDirectWorkflow,
+  analyzeWorkflow,
+  prepareRequestCode,
+  type DirectModel,
+  type ModelChoice,
+} from './core/analyze.ts';
 
 export interface McpLike {
   call<T = unknown>(name: string, args?: Record<string, unknown>): Promise<T>;
@@ -256,14 +268,22 @@ async function upgradeCore(mcp: McpLike, workflows: Partial<Record<CoreWorkflow,
   }
   if (from < 4 && workflows.analyze) {
     // v4: analysis also ranks products worth investing more in (Dashboard card).
+    // The direct (OpenRouter) variant carries prompt and schema inside Prepare Facts and has no Insight Format node.
+    const d = await mcp.call<WorkflowDetails>('get_workflow_details', { workflowId: workflows.analyze });
+    const direct = !d.workflow.nodes.some((n) => n.name === 'Insight Format');
     await mcp.call('update_workflow', {
       workflowId: workflows.analyze,
-      operations: [
-        { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: PREPARE_FACTS_CODE },
-        { type: 'setNodeParameter', nodeName: 'Insight Format', path: '/inputSchema', value: JSON.stringify(ANALYSIS_SCHEMA) },
-        { type: 'setNodeParameter', nodeName: 'Analyst', path: '/messages/messageValues/0/message', value: ANALYSIS_SYSTEM },
-        { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
-      ],
+      operations: direct
+        ? [
+            { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: prepareRequestCode(OPENROUTER_ANALYSIS_MODEL) },
+            { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+          ]
+        : [
+            { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: PREPARE_FACTS_CODE },
+            { type: 'setNodeParameter', nodeName: 'Insight Format', path: '/inputSchema', value: JSON.stringify(ANALYSIS_SCHEMA) },
+            { type: 'setNodeParameter', nodeName: 'Analyst', path: '/messages/messageValues/0/message', value: ANALYSIS_SYSTEM },
+            { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+          ],
     });
     await mcp.call('publish_workflow', { workflowId: workflows.analyze });
   }
