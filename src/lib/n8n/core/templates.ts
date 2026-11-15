@@ -7,6 +7,14 @@ import { code, dtDelete, dtGet, dtInsert, dtUpdate, ex, ifOk, program, respond, 
 const READ = 'Read API';
 const WRITE = 'Write API';
 const all = (node: string) => `$('${node}').all().map(function (i) { return i.json; })`;
+const PERIOD_DAYS = `({ '7d': 7, '30d': 30, '90d': 90 })[$('${READ}').first().json.query.period] || 30`;
+
+/** Summary reads two periods of sales: the current one and the one before it (per-product comparison). */
+export const SUMMARY_SALES_SINCE = `{{ $now.minus({ days: 2 * (${PERIOD_DAYS}) }).toISO() }}`;
+export const BUILD_SUMMARY_CODE = codeNode(
+  SUMMARY,
+  `{ products: ${all('Summary Products')}, sales: ${all('Summary Sales')}, items: ${all('Open Items')}, sessions: ${all('Newest Session')}, messages: ${all('Session Messages')}, config: ${all('Summary Config')}, period: $('${READ}').first().json.query.period, now: new Date().toISOString() }`,
+);
 
 export interface ApiParams {
   tables: TableIds;
@@ -25,28 +33,20 @@ export function apiWorkflow({ tables: t, path, origins }: ApiParams): string {
     output: [{ query: { view: 'summary', period: '30d' }, body: { op: 'item.done', item_id: 'i1' } }],
   });
   const body = (f: string) => `$('${WRITE}').first().json.body.${f}`;
-  const period = `({ '7d': 7, '30d': 30, '90d': 90 })[$('${READ}').first().json.query.period] || 30`;
 
   const nodes: NodeSpec[] = [
     // ----- reads -----
     hook('readHook', READ, 'GET'),
     switchOn('readRoute', 'Route Read', '{{ $json.query.view }}', ['summary', 'stock', 'notice']),
     dtGet('sumProducts', 'Summary Products', t.inv_products),
-    dtGet('sumSales', 'Summary Sales', t.inv_sales, { where: [['sold_at', 'gte', ex(`{{ $now.minus({ days: ${period} }).toISO() }}`)]] }),
+    dtGet('sumSales', 'Summary Sales', t.inv_sales, { where: [['sold_at', 'gte', ex(SUMMARY_SALES_SINCE)]] }),
     dtGet('sumItems', 'Open Items', t.inv_action_items, { where: [['status', 'eq', 'open']] }),
     dtGet('sumSession', 'Newest Session', t.inv_sessions, { limit: 1, orderBy: ['createdAt', 'DESC'] }),
     dtGet('sumMessages', 'Session Messages', t.inv_messages, {
       where: [['session_id', 'eq', ex(`{{ $('Newest Session').first().json.session_id || '__none__' }}`)]],
     }),
     dtGet('sumConfig', 'Summary Config', t.inv_config),
-    code(
-      'sumBuild',
-      'Build Summary',
-      codeNode(
-        SUMMARY,
-        `{ products: ${all('Summary Products')}, sales: ${all('Summary Sales')}, items: ${all('Open Items')}, sessions: ${all('Newest Session')}, messages: ${all('Session Messages')}, config: ${all('Summary Config')}, period: $('${READ}').first().json.query.period, now: new Date().toISOString() }`,
-      ),
-    ),
+    code('sumBuild', 'Build Summary', BUILD_SUMMARY_CODE),
     dtGet('stockProducts', 'Stock Products', t.inv_products),
     code(
       'stockBuild',

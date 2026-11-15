@@ -30,6 +30,8 @@ export interface Summary {
   sales_trend: { date: string; revenue: number; units: number }[];
   top_sellers: { sku: string; name: string; units: number; revenue: number }[];
   slow_movers: { sku: string; name: string; quantity: number; units: number }[];
+  /** Per product: this period vs the period before it (top 50 by current revenue). Missing on core < v3. */
+  product_sales?: { sku: string; name: string; units: number; revenue: number; prev_units: number; prev_revenue: number }[];
   action_items: ActionItem[];
   session: { session_id: string; created_at: string; origin: string; messages: StoredMessage[] } | null;
   config: { version: number; base_currency: string; vapid_public_key: string | null; analysis: boolean };

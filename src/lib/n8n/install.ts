@@ -3,7 +3,7 @@
 // Works on any MCP-like client so the same code runs in the app and in tests.
 
 import { CORE_VERSION, TABLES, TABLE_NAMES, WORKFLOWS, type CoreWorkflow, type TableIds, type TableName } from './core/schema.ts';
-import { apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
+import { BUILD_SUMMARY_CODE, SUMMARY_SALES_SINCE, apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
 import { extractVapid, signPushCode } from './core/code.ts';
 import { MODEL_CHOICES, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
 
@@ -203,9 +203,11 @@ export async function install(mcp: McpLike, o: InstallOptions): Promise<InstallI
   }
 
   const installed = Number(config.version || CORE_VERSION);
-  if (installed < CORE_VERSION && !newConfig.vapid_public_key) {
+  // Workflows created above are already current; only the ones that existed get upgraded.
+  const existing = { notify: newConfig.vapid_public_key ? undefined : workflows.notify, api: det.workflows.api };
+  if (installed < CORE_VERSION && (existing.notify || existing.api)) {
     step('Updating Invenstory…');
-    await upgradeCore(mcp, workflows, installed);
+    await upgradeCore(mcp, existing, installed);
   }
   if (!config.version || installed < CORE_VERSION) newConfig.version = String(CORE_VERSION);
   if (!config.base_currency) newConfig.base_currency = o.baseCurrency.toUpperCase();
@@ -238,6 +240,17 @@ async function upgradeCore(mcp: McpLike, workflows: Partial<Record<CoreWorkflow,
       operations: [{ type: 'setNodeParameter', nodeName: 'Sign Push', path: '/jsCode', value: signPushCode(keys.privateJwk, keys.publicKey) }],
     });
     await mcp.call('publish_workflow', { workflowId: workflows.notify });
+  }
+  if (from < 3 && workflows.api) {
+    // v3: the summary reads the previous period too and returns per-product sales (revenue heatmap).
+    await mcp.call('update_workflow', {
+      workflowId: workflows.api,
+      operations: [
+        { type: 'setNodeParameter', nodeName: 'Summary Sales', path: '/filters/conditions/0/keyValue', value: `=${SUMMARY_SALES_SINCE}` },
+        { type: 'setNodeParameter', nodeName: 'Build Summary', path: '/jsCode', value: BUILD_SUMMARY_CODE },
+      ],
+    });
+    await mcp.call('publish_workflow', { workflowId: workflows.api });
   }
 }
 

@@ -59,6 +59,25 @@ describe('SUMMARY', () => {
     expect(s.session.messages).toEqual([{ role: 'assistant', created_at: '2026-11-15T11:00:00Z', content: { type: 'text', text: 'hi' } }]);
   });
 
+  test('product sales compare this period with the one before', () => {
+    const s = run({
+      ...base,
+      sales: [
+        ...sales,
+        row({ sku: 'A', quantity: 1, revenue: 10, currency: 'USD', sold_at: '2026-11-05T10:00:00Z' }), // previous 7d
+        row({ sku: 'C', quantity: 2, revenue: 30, currency: 'USD', sold_at: '2026-11-02T10:00:00Z' }), // previous 7d only
+        row({ sku: 'C', quantity: 2, revenue: 30, currency: 'USD', sold_at: '2026-10-30T10:00:00Z' }), // before both
+      ],
+    });
+    expect(s.product_sales).toEqual([
+      { sku: 'B', name: 'Beta', units: 1, revenue: 50, prev_units: 0, prev_revenue: 0 },
+      { sku: 'A', name: 'Alpha', units: 3, revenue: 20, prev_units: 1, prev_revenue: 10 },
+      { sku: 'C', name: 'Gamma', units: 0, revenue: 0, prev_units: 2, prev_revenue: 30 },
+    ]);
+    expect(s.kpis.revenue).toBe(70);
+    expect(s.top_sellers.map((x: { sku: string }) => x.sku)).toEqual(['B', 'A']);
+  });
+
   test('empty placeholder items from alwaysOutputData are ignored', () => {
     const s = run({ products: [{}], sales: [{}], items: [{}], sessions: [{}], messages: [{}], config: [{}], period: '30d', now: NOW });
     expect(s.kpis.products).toBe(0);

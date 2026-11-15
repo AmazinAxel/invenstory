@@ -6,6 +6,7 @@ import { completeLogin, logout, type Connection } from '../lib/n8n/oauth.ts';
 import type { LlmConfig } from '../lib/llm/types.ts';
 import { completeOpenRouterLogin } from '../lib/llm/openrouter.ts';
 import type { InstallInfo } from '../lib/n8n/install.ts';
+import { CORE_VERSION } from '../lib/n8n/core/schema.ts';
 
 class AppState {
   ready = $state(false);
@@ -26,6 +27,8 @@ class AppState {
       this.llm = (await kv.get<LlmConfig>(K.llm)) ?? null;
       this.install = (await kv.get<InstallInfo>(K.install)) ?? null;
       if (this.install && this.conn && this.install.base !== this.conn.base) this.install = null;
+      // Older core: rerun install, which upgrades the workflows in place (ids and keys are kept).
+      if (this.install && this.install.version < CORE_VERSION) this.install = null;
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
     } finally {

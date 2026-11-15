@@ -188,7 +188,7 @@ src/lib/voice/              types (engine seam), elevenlabs, capture, player, sp
 src/lib/{sse,draft,md,format,push,suggest}.ts
 src/state/                  app, dashboard, chat (+ chat-history), voice
 src/views/                  Onboarding, InstallStep, Shell, Dashboard, Chat, Automations
-src/ui/                     Kpi, Trend, TopSellers, StockList, ActionItem, Activity, Md, MdInline, Prompt, TabBar, Settings, VoiceSettings, MicButton, VoiceBar, Icon
+src/ui/                     Kpi, Trend, SalesHeatmap, StockOverview, ActionItem, Activity, Md, MdInline, Prompt, TabBar, Settings, VoiceSettings, MicButton, VoiceBar, Icon
 test/                       bun tests
 docs/                       this folder
 ```
