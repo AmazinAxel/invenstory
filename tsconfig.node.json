@@ -3,8 +3,14 @@
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "lib": ["es2022", "dom", "dom.iterable"],
-    "types": ["bun"],
+    "lib": [
+      "es2022",
+      "dom",
+      "dom.iterable"
+    ],
+    "types": [
+      "bun"
+    ],
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
@@ -12,5 +18,10 @@
     "noUncheckedIndexedAccess": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "src/server/**/*.ts", "test/**/*.ts"]
+  "include": [
+    "vite.config.ts",
+    "src/server/**/*.ts",
+    "test/**/*.ts",
+    "scripts/**/*.ts"
+  ]
 }

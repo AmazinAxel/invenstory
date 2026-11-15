@@ -1,0 +1,9 @@
+# Cloudflare Pages project (static dist/ + functions/mcp.ts proxy). Not deployed yet.
+# Deploy: bun run build && bunx wrangler@4 pages deploy dist --project-name invenstory
+name = "invenstory"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Hosts the /mcp proxy may forward to (comma-separated; "*.x" = one label). Add self-hosted n8n here.
+N8N_ALLOWED_HOSTS = "*.app.n8n.cloud"

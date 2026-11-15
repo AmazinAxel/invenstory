@@ -1,7 +1,7 @@
 # Invenstory — implementation plan
 
 ## Context
-Setting up and maintaining inventory/stock and sales-tracking automation is technically hard, slow and error-prone for small businesses. Invenstory is a static, mobile-first PWA in which an LLM builds n8n workflows inside the user's own n8n, n8n ingests and analyses stock/sales data, and a fixed dashboard shows statistics, insights and one-tap action items. There is no server of ours and no accounts. Greenfield project at `/home/alec/Projects/invenstory`.
+Setting up and maintaining inventory/stock and sales-tracking automation is technically hard, slow and error-prone for small businesses. Invenstory is a static, mobile-first PWA in which an LLM builds n8n workflows inside the user's own n8n, n8n ingests and analyses stock/sales data, and a fixed dashboard shows statistics, insights and one-tap action items. There is no server of ours and no accounts. Greenfield project (originally planned at `/home/alec/Projects/invenstory`; built in `~/LOOP`).
 
 ## Decisions fixed in the interview
 - **Hosting**: static files plus one stateless MCP CORS proxy (Cloudflare Pages Function `functions/mcp.ts`, same origin as the app). No accounts, no stored state, nothing logged. *(Re-planned 2026-11-14 after Phase 0 check 2: n8n Cloud sends no CORS headers on the MCP endpoint.)*
@@ -144,7 +144,10 @@ n8n Cloud instance URL on 2.36+ with instance-level MCP enabled; an LLM credenti
 - n8n workflow building via MCP is in public preview; iPhone push needs the PWA installed.
 - n8n data tables have a size cap; large sales histories may need pruning later.
 
-## Implementation status (2026-11-14)
+## Implementation status
+See [STATUS.md](STATUS.md) (current), [TESTING.md](TESTING.md) and [../CHANGELOG.md](../CHANGELOG.md). The original snapshot notes from 2026-11-14 follow.
+
+### Snapshot 2026-11-14
 - Phases 0–7 implemented on branch `invenstory`; `bun run check`, `bun test` (59 tests), `bun run build` pass.
 - Verified live against n8n Cloud: install of all tables and core workflows (api, notify, error), API reads (summary, stock, notice) and writes (item.done/dismiss/run refusal, analyze, push.unsubscribe, unknown op), analysis workflow validation for Anthropic/OpenAI/Gemini credentials, in-place core upgrade (v1 → v2).
 - Not yet verified end to end in the app: login on the app origin, chat building an ingest workflow, analysis run (needs an LLM credential in n8n), push from notify to the installed PWA.

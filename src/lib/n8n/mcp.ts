@@ -65,16 +65,21 @@ export class Mcp {
   serverInfo: { name?: string; version?: string } = {};
   instructions = '';
 
+  /**
+   * @param token Optional fixed bearer token (an n8n MCP access token, used by scripts/n8n.ts);
+   *              without it the browser's OAuth tokens are used and refreshed.
+   */
   constructor(
     readonly conn: Connection,
     private readonly mode: 'proxy' | 'direct' = 'proxy',
+    private readonly token?: () => Promise<string>,
   ) {}
 
   private async post(msg: { id?: number; method: string; params?: object }, retried = false): Promise<RpcResponse | null> {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
       accept: 'application/json, text/event-stream',
-      authorization: `Bearer ${await accessToken(this.conn)}`,
+      authorization: `Bearer ${this.token ? await this.token() : await accessToken(this.conn)}`,
     };
     if (this.session) headers['mcp-session-id'] = this.session;
     if (this.protocol) headers['mcp-protocol-version'] = this.protocol;
@@ -92,6 +97,7 @@ export class Mcp {
       r = await fetch(url, { method: 'POST', headers, body });
     }
     if (r.status === 429) throw new McpError('n8n is rate-limiting requests right now. Wait a minute and try again.', 429);
+    if (r.status === 401 && this.token) throw new McpError('n8n rejected the MCP access token (401).', 401);
     if (r.status === 401 && !retried) {
       await refresh(this.conn);
       return this.post(msg, true);
