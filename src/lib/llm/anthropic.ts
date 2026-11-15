@@ -20,6 +20,11 @@ const API_VERSION = '2026-10-21';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 // Models that accept server-side refusal fallbacks (`fallbacks: "default"`).
 const FALLBACK_MODELS = /^claude-(opus-5-5|opus-5|fable-5-2|fable-5-1|sonnet-5-5)$/;
+// Models whose thinking blocks are bound to the conversation (preserved thinking). The app's
+// system prompt and tool list change between releases, so mismatched blocks are dropped
+// instead of failing the request.
+const BINDING_MODELS = /^claude-(opus-5-5|opus-5|sonnet-5-5|haiku-5-5|fable-5(-1|-2)?|mythos-5(-1|-2)?)$/;
+const BINDING_BETA = 'thinking-binding-controls-2026-08-01';
 // Models without the effort parameter.
 const NO_EFFORT = /^claude-(sonnet-4-5|haiku-4-5|3)/;
 
@@ -109,10 +114,16 @@ export function anthropic(cfg: LlmConfig): Llm {
         'anthropic-version': API_VERSION,
         'anthropic-dangerous-direct-browser-access': 'true',
       };
+      const betas: string[] = [];
       if (firstParty && FALLBACK_MODELS.test(model)) {
         body.fallbacks = 'default';
-        headers['anthropic-beta'] = FALLBACK_BETA;
+        betas.push(FALLBACK_BETA);
       }
+      if (firstParty && BINDING_MODELS.test(model)) {
+        body.thinking = { type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } };
+        betas.push(BINDING_BETA);
+      }
+      if (betas.length) headers['anthropic-beta'] = betas.join(',');
 
       const r = await fetch(`${base}/v1/messages`, { method: 'POST', headers, body: JSON.stringify(body), signal: req.signal });
       if (!r.ok || !r.body) {

@@ -92,7 +92,8 @@ describe('anthropic conversion', () => {
     ]);
     expect(sent!.headers.get('anthropic-version')).toBe('2026-10-21');
     expect(sent!.headers.get('anthropic-dangerous-direct-browser-access')).toBe('true');
-    expect(sent!.headers.get('anthropic-beta')).toBe('server-side-fallback-2026-07-01');
+    expect(sent!.headers.get('anthropic-beta')).toBe('server-side-fallback-2026-07-01,thinking-binding-controls-2026-08-01');
+    expect(sent!.body.thinking).toEqual({ type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } });
     expect(sent!.body.fallbacks).toBe('default');
     expect(sent!.body.output_config).toEqual({ effort: 'high' });
     expect((sent!.body.tools as { eager_input_streaming: boolean }[])[0]!.eager_input_streaming).toBe(true);
