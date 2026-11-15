@@ -89,16 +89,3 @@ export function repairHistory(history: Message[]): Message[] {
   }
   return out;
 }
-
-/**
- * Whether the dashboard summary's newest session should replace the chat on screen.
- * `resetAt` (ms) is set by "New chat": until a session created after it exists, the old one stays hidden.
- */
-export function shouldAdopt(
-  cur: { sessionId: string | null; storedCount: number },
-  sess: { session_id: string; created_at: string; messageCount: number },
-  resetAt: number | null,
-): boolean {
-  if (resetAt !== null && !(Date.parse(sess.created_at) > resetAt)) return false;
-  return sess.session_id !== cur.sessionId || sess.messageCount > cur.storedCount;
-}
