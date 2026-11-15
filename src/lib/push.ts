@@ -15,9 +15,6 @@ export function urlBase64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-/** The Dashboard asks once, and only when push can actually be turned on from a tap. */
-export const shouldPromptPush = (state: PushState, handled: boolean): boolean => state === 'off' && !handled;
-
 const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 

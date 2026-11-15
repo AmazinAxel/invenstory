@@ -10,7 +10,6 @@
   import Activity from '../ui/Activity.svelte';
   import Md from '../ui/Md.svelte';
   import Icon from '../ui/Icon.svelte';
-  import NotifyPrompt from '../ui/NotifyPrompt.svelte';
 
   let { onchat }: { onchat: () => void } = $props();
   let activityKey = $state(0);
@@ -34,8 +33,6 @@
       {/each}
     </div>
   </header>
-
-  <NotifyPrompt />
 
   {#if d.error}<p class="error small" role="alert">{d.error}</p>{/if}
 
