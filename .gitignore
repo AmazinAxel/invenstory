@@ -5,3 +5,4 @@ spike/
 .env
 .env.local
 merch-test-site/
+.merch-test-site-state/
