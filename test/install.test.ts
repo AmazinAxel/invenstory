@@ -4,12 +4,12 @@ import { signPushCode } from '../src/lib/n8n/core/code.ts';
 import { BUILD_SUMMARY_CODE, SUMMARY_SALES_SINCE } from '../src/lib/n8n/core/templates.ts';
 import { dtGet, ex } from '../src/lib/n8n/core/sdk.ts';
 import { CORE_VERSION, TABLE_NAMES, WORKFLOWS, type TableIds } from '../src/lib/n8n/core/schema.ts';
-import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, BUILD_RECORDS_CODE, MODEL_CHOICES, PREPARE_FACTS_CODE, analyzeWorkflow } from '../src/lib/n8n/core/analyze.ts';
+import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, BUILD_RECORDS_CODE, MODEL_CHOICES, OPENROUTER_ANALYSIS_MODEL, PREPARE_FACTS_CODE, analyzeDirectWorkflow, analyzeWorkflow, prepareRequestCode } from '../src/lib/n8n/core/analyze.ts';
 
 type Call = { name: string; args: Record<string, unknown> };
 
 /** Fake n8n with every core table and workflow installed at `version`. */
-async function fakeN8n(version: string) {
+async function fakeN8n(version: string, analyzeNodes = ['Prepare Facts', 'Analysis Model', 'Insight Format', 'Analyst', 'Build Records']) {
   const keys = await generateVapid();
   const calls: Call[] = [];
   const responses: Record<string, (a: Record<string, unknown>) => unknown> = {
@@ -28,6 +28,8 @@ async function fakeN8n(version: string) {
     get_workflow_details: (a) =>
       a.workflowId === 'w-api'
         ? { workflow: { nodes: [{ name: 'Read API', type: 'n8n-nodes-base.webhook', parameters: { path: 'inv-test', options: { allowedOrigins: 'https://app.test' } } }] } }
+        : a.workflowId === 'w-analyze'
+        ? { workflow: { nodes: analyzeNodes.map((name) => ({ name, type: 'n8n-nodes-base.code', parameters: {} })) } }
         : { workflow: { nodes: [{ name: 'Sign Push', type: 'n8n-nodes-base.code', parameters: { jsCode: signPushCode(keys.privateJwk, keys.publicKey) } }] } },
   };
   const mcp: McpLike = {
@@ -58,6 +60,25 @@ describe('upgradeCore', () => {
       },
     ]);
     expect(calls.some((c) => c.name === 'publish_workflow' && c.args.workflowId === 'w-analyze')).toBe(true);
+  });
+
+  test('v3 → v4 patches the direct (OpenRouter) variant through its Prepare Facts node', async () => {
+    const { mcp, calls } = await fakeN8n('3', ['Prepare Facts', 'Analyst', 'Read Reply', 'Build Records']);
+    await run(mcp);
+    expect(updates(calls)).toEqual([
+      {
+        workflowId: 'w-analyze',
+        operations: [
+          { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: prepareRequestCode(OPENROUTER_ANALYSIS_MODEL) },
+          { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+        ],
+      },
+    ]);
+    const t = Object.fromEntries(TABLE_NAMES.map((n) => [n, `t-${n}`])) as TableIds;
+    const direct = { baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'k', model: OPENROUTER_ANALYSIS_MODEL, label: 'OpenRouter' };
+    const code = analyzeDirectWorkflow({ tables: t, notifyId: 'n', direct });
+    expect(code).toContain(JSON.stringify(prepareRequestCode(OPENROUTER_ANALYSIS_MODEL)));
+    expect(code).toContain(JSON.stringify(BUILD_RECORDS_CODE));
   });
 
   test('the patched parameter paths exist on the analysis nodes', () => {

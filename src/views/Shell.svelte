@@ -8,6 +8,7 @@
   import Setup from './Setup.svelte';
   import { setup } from '../state/setup.svelte.ts';
   import Brand from '../ui/Brand.svelte';
+  import { analysis } from '../state/analysis.svelte.ts';
 
   const saved = (() => {
     try {
@@ -32,6 +33,8 @@
     void setup.load().then(() => {
       if (setup.done) void dashboard.refresh('open');
     });
+    // One-time per install: with an OpenRouter login, analysis sets itself up (a no-op once it exists).
+    void analysis.ensure();
     const onVisible = () => document.visibilityState === 'visible' && void dashboard.refresh('focus');
     const onMessage = (e: MessageEvent) => (e.data as { type?: string })?.type === 'push' && void dashboard.refresh('push');
     document.addEventListener('visibilitychange', onVisible);

@@ -4,6 +4,8 @@
   import { dashboard } from '../state/dashboard.svelte.ts';
   import { voice } from '../state/voice.svelte.ts';
   import VoiceSettings from '../ui/VoiceSettings.svelte';
+  import { analysis } from '../state/analysis.svelte.ts';
+  import { OPENROUTER_ANALYSIS_MODEL } from '../lib/n8n/core/analyze.ts';
   import { analysisChoices, listCredentials, readRows, setupAnalysis, type CredentialInfo } from '../lib/n8n/install.ts';
   import type { ModelChoice } from '../lib/n8n/core/analyze.ts';
   import { NAME_PREFIX } from '../lib/agent/tools.ts';
@@ -85,6 +87,13 @@
     }
   }
 
+  // With an OpenRouter login, analysis needs nothing from the owner: it installs itself (also after switching provider here).
+  let directModelId = $state('');
+  $effect(() => {
+    void app.llm;
+    if (opened) void analysis.ensure();
+  });
+
   async function unregister(workflowId: string) {
     try {
       await dashboard.api.post('action.unregister', { workflow_id: workflowId });
@@ -144,6 +153,26 @@
     {#if app.install?.workflows.analyze}
       <p class="ok small">Analysis runs in n8n after data changes.</p>
       <button class="link" onclick={() => dashboard.analyze()} disabled={dashboard.analysing}>{dashboard.analysing ? 'Analysing…' : 'Run analysis now'}</button>
+      {#if analysis.direct}
+        <details>
+          <summary class="muted small">How analysis is connected</summary>
+          <p class="muted small">
+            Analysis uses your OpenRouter account{app.install.analysisModel ? ` (${app.install.analysisModel})` : ''}, so insights and
+            notifications keep coming while this app is closed. For that, your OpenRouter key is saved inside the analysis
+            automation in your n8n, where anyone who can open your n8n can see it.
+          </p>
+          <label>Model <input bind:value={directModelId} placeholder={OPENROUTER_ANALYSIS_MODEL} autocapitalize="off" spellcheck="false" /></label>
+          <button disabled={analysis.busy} onclick={() => analysis.setup(directModelId)}>{analysis.busy ? analysis.step || 'Setting up…' : 'Set up again'}</button>
+          {#if analysis.error}<p class="error small" role="alert">{analysis.error}</p>{/if}
+        </details>
+      {/if}
+    {:else if analysis.direct}
+      {#if analysis.error}
+        <p class="error small" role="alert">Analysis could not be set up: {analysis.error}</p>
+        <button class="primary" disabled={analysis.busy} onclick={() => analysis.setup()}>Try again</button>
+      {:else}
+        <p class="muted small" role="status">{analysis.step || 'Setting up analysis…'}</p>
+      {/if}
     {:else if llmCreds.length}
       <p class="muted small">Pick the n8n credential analysis should use.</p>
       <label>

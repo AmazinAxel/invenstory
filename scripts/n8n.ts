@@ -13,7 +13,7 @@
 //   bun scripts/n8n.ts state                         install status, row counts, Invenstory workflows
 //   bun scripts/n8n.ts install [origin] [currency]   idempotent install/upgrade (origin = app URL to allow)
 //   bun scripts/n8n.ts summary [7d|30d|90d]          call the secret-path API like the dashboard does
-//   bun scripts/n8n.ts validate <api|notify|error|analyze>   validate a core template against n8n (saves nothing)
+//   bun scripts/n8n.ts validate <api|notify|error|analyze|analyze-direct>   validate a core template against n8n (saves nothing)
 //
 // Keep call volume low: n8n Cloud rate-limits MCP (HTTP 429).
 
@@ -21,7 +21,7 @@ import { Mcp, resultText } from '../src/lib/n8n/mcp.ts';
 import { apiDetails, detect, generateVapid, install, isComplete, readConfig } from '../src/lib/n8n/install.ts';
 import { TABLE_NAMES, type TableIds } from '../src/lib/n8n/core/schema.ts';
 import { apiWorkflow, errorWorkflow, notifyWorkflow } from '../src/lib/n8n/core/templates.ts';
-import { analyzeWorkflow, MODEL_CHOICES } from '../src/lib/n8n/core/analyze.ts';
+import { analyzeDirectWorkflow, analyzeWorkflow, MODEL_CHOICES, OPENROUTER_ANALYSIS_MODEL } from '../src/lib/n8n/core/analyze.ts';
 import type { Connection } from '../src/lib/n8n/oauth.ts';
 
 const base = (process.env.N8N_BASE ?? '').replace(/\/+$/, '');
@@ -97,7 +97,10 @@ async function main() {
             ? notifyWorkflow({ tables, vapidPrivateJwk: vapid.privateJwk, vapidPublicKey: vapid.publicKey })
             : which === 'error'
               ? errorWorkflow({ notifyId: d.workflows.notify ?? dummy })
-              : analyzeWorkflow({ tables, notifyId: d.workflows.notify ?? dummy, choice: MODEL_CHOICES[0]!, credential: { id: dummy, name: 'Validate' }, model: MODEL_CHOICES[0]!.defaultModel });
+              : which === 'analyze-direct'
+                ? // A placeholder key: validation never calls the model, and a real key must not be typed into a terminal.
+                  analyzeDirectWorkflow({ tables, notifyId: d.workflows.notify ?? dummy, direct: { baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'validate-only', model: OPENROUTER_ANALYSIS_MODEL, label: 'OpenRouter' } })
+                : analyzeWorkflow({ tables, notifyId: d.workflows.notify ?? dummy, choice: MODEL_CHOICES[0]!, credential: { id: dummy, name: 'Validate' }, model: MODEL_CHOICES[0]!.defaultModel });
       const r = await mcp.callTool('validate_workflow', { code });
       console.log(JSON.stringify(r.structuredContent ?? resultText(r), null, 2));
       return;

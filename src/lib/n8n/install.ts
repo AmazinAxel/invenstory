@@ -5,7 +5,19 @@
 import { CORE_VERSION, TABLES, TABLE_NAMES, WORKFLOWS, type CoreWorkflow, type TableIds, type TableName } from './core/schema.ts';
 import { BUILD_SUMMARY_CODE, SUMMARY_SALES_SINCE, apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
 import { extractVapid, signPushCode } from './core/code.ts';
-import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, BUILD_RECORDS_CODE, MODEL_CHOICES, PREPARE_FACTS_CODE, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
+import {
+  ANALYSIS_SCHEMA,
+  ANALYSIS_SYSTEM,
+  BUILD_RECORDS_CODE,
+  MODEL_CHOICES,
+  OPENROUTER_ANALYSIS_MODEL,
+  PREPARE_FACTS_CODE,
+  analyzeDirectWorkflow,
+  analyzeWorkflow,
+  prepareRequestCode,
+  type DirectModel,
+  type ModelChoice,
+} from './core/analyze.ts';
 
 export interface McpLike {
   call<T = unknown>(name: string, args?: Record<string, unknown>): Promise<T>;
@@ -20,6 +32,8 @@ export interface InstallInfo {
   workflows: Partial<Record<CoreWorkflow, string>>;
   origins: string[];
   vapidPublicKey: string;
+  /** "Provider: model" of an analysis this device set up on the owner's own model key (display only). */
+  analysisModel?: string;
 }
 
 export interface Detected {
@@ -254,14 +268,22 @@ async function upgradeCore(mcp: McpLike, workflows: Partial<Record<CoreWorkflow,
   }
   if (from < 4 && workflows.analyze) {
     // v4: analysis also ranks products worth investing more in (Dashboard card).
+    // The direct (OpenRouter) variant carries prompt and schema inside Prepare Facts and has no Insight Format node.
+    const d = await mcp.call<WorkflowDetails>('get_workflow_details', { workflowId: workflows.analyze });
+    const direct = !d.workflow.nodes.some((n) => n.name === 'Insight Format');
     await mcp.call('update_workflow', {
       workflowId: workflows.analyze,
-      operations: [
-        { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: PREPARE_FACTS_CODE },
-        { type: 'setNodeParameter', nodeName: 'Insight Format', path: '/inputSchema', value: JSON.stringify(ANALYSIS_SCHEMA) },
-        { type: 'setNodeParameter', nodeName: 'Analyst', path: '/messages/messageValues/0/message', value: ANALYSIS_SYSTEM },
-        { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
-      ],
+      operations: direct
+        ? [
+            { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: prepareRequestCode(OPENROUTER_ANALYSIS_MODEL) },
+            { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+          ]
+        : [
+            { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: PREPARE_FACTS_CODE },
+            { type: 'setNodeParameter', nodeName: 'Insight Format', path: '/inputSchema', value: JSON.stringify(ANALYSIS_SCHEMA) },
+            { type: 'setNodeParameter', nodeName: 'Analyst', path: '/messages/messageValues/0/message', value: ANALYSIS_SYSTEM },
+            { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+          ],
     });
     await mcp.call('publish_workflow', { workflowId: workflows.analyze });
   }
@@ -322,4 +344,49 @@ export async function setupAnalysis(
   });
   onStep('Analysis ready.');
   return { ...info, workflows: { ...info.workflows, analyze: id } };
+}
+
+// ---------- analysis on the owner's OpenRouter login (no n8n credential) ----------
+
+const redact = (text: string, secret: string) => (secret ? text.split(secret).join('[key]') : text);
+
+/**
+ * Installs invenstory-analyze so that n8n calls the model itself with the owner's key (see
+ * analyzeDirectWorkflow). The key is written into that one workflow and nowhere else: not into
+ * inv_config, not into an error message.
+ */
+export async function setupDirectAnalysis(mcp: McpLike, info: InstallInfo, direct: DirectModel, onStep: Step = () => {}): Promise<InstallInfo> {
+  if (!info.workflows.notify || !info.workflows.error) throw new Error('Install Invenstory first.');
+  onStep('Installing analysis…');
+  try {
+    const code = analyzeDirectWorkflow({ tables: info.tables, notifyId: info.workflows.notify, direct });
+    const old = info.workflows.analyze;
+    const id = await createWorkflow(mcp, info.projectId, WORKFLOWS.analyze, 'Invenstory core: analyses stock and sales and proposes action items.', code);
+    await setErrorWorkflow(mcp, id, info.workflows.error);
+    if (old && old !== id) await mcp.call('archive_workflow', { workflowId: old });
+    const analysisModel = `${direct.label}: ${direct.model}`;
+    await appendConfig(mcp, { projectId: info.projectId, tableId: info.tables.inv_config }, { analyze_workflow_id: id, analysis_model: analysisModel });
+    onStep('Analysis ready.');
+    return { ...info, workflows: { ...info.workflows, analyze: id }, analysisModel };
+  } catch (e) {
+    // n8n can quote the submitted workflow code in an error message: keep the key out of the UI.
+    throw new Error(redact(e instanceof Error ? e.message : String(e), direct.apiKey));
+  }
+}
+
+/**
+ * Uses an analysis workflow that already exists in n8n (set up from another device, or left by
+ * a setup that was interrupted) instead of creating a second one. Returns null when there is none.
+ */
+export async function adoptAnalysis(mcp: McpLike, info: InstallInfo): Promise<InstallInfo | null> {
+  const wfs = await mcp.call<{ data: { id: string; name: string; isArchived?: boolean }[] }>('search_workflows', { query: WORKFLOWS.analyze, limit: 20 });
+  const found = wfs.data.find((w) => w.name === WORKFLOWS.analyze && !w.isArchived)?.id;
+  if (!found) return null;
+  const config = await readConfig(mcp, info.projectId, info.tables.inv_config);
+  if (config.analyze_workflow_id !== found) {
+    // An interrupted setup: finish its last two steps so "run analysis" and failure alerts work.
+    if (info.workflows.error) await setErrorWorkflow(mcp, found, info.workflows.error);
+    await appendConfig(mcp, { projectId: info.projectId, tableId: info.tables.inv_config }, { analyze_workflow_id: found });
+  }
+  return { ...info, workflows: { ...info.workflows, analyze: found } };
 }

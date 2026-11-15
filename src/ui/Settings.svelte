@@ -57,7 +57,10 @@
     <button onclick={changeLlm}>Change language model</button>
     <button onclick={() => app.disconnect()}>Disconnect n8n</button>
   </div>
-  <p class="muted small">Keys are stored on this device only. Disconnecting keeps your data in n8n.</p>
+  <p class="muted small">
+    Keys are stored on this device. With OpenRouter, the key is also saved in your n8n so analysis can run while the app is
+    closed. Disconnecting keeps your data in n8n.
+  </p>
 </section>
 
 {#if voice.config || voice.setup}<VoiceSettings />{/if}

@@ -29,3 +29,4 @@ the same title as a line below. `test/adr.test.ts` fails the release if the inde
 - [D20. Switch AI provider from the Automations tab](adr/0020-switch-provider-in-automations.md)
 - [D21. "New chat" is a client-side reset](adr/0021-new-chat-client-side-reset.md)
 - [D22. Voice mode wraps the browser agent (ElevenLabs, key per device)](adr/0022-voice-wrapper-around-browser-agent.md)
+- [D23. Analysis runs on the owner's OpenRouter login (key stored in the n8n workflow)](adr/0023-analysis-on-openrouter-login.md)

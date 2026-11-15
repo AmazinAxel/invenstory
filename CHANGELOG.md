@@ -1,6 +1,16 @@
 # Changelog
 
 ## Unreleased
+- Analysis sets itself up. With an OpenRouter login, `invenstory-analyze` is installed automatically and calls
+  OpenRouter straight from n8n with the owner's key, on a small fixed model (`anthropic/claude-haiku-5.5`; change it or
+  "Set up again" under Automations → Analysis → "How analysis is connected"). Insights and the "new action items"
+  notification keep coming while the app is closed, with no LLM credential to create in n8n and no n8n Gateway credits
+  spent. Other connections (Claude key, other providers, Ollama) keep the credential picker. Why: creating an n8n
+  credential was the last hand-made setup step, and the n8n credit balance is small. Trade-off, accepted by the owner:
+  the OpenRouter key is saved inside that n8n workflow, where anyone who can open the owner's n8n can see it (see the
+  direct-analysis ADR in docs/adr/); the Settings and key-form texts now say so. Safety: the chat agent can no longer
+  read core workflows or their run data, so the key cannot end up in a chat or at the model provider. Not yet run
+  against a real OpenRouter key; n8n validated the generated workflow (one expected `HARDCODED_CREDENTIALS` warning).
 - Voice mode (optional, per device): talk to the chat and hear the answer. Open the app once with `?voice` to
   reveal the Voice card on that device (ordinary users are never asked for an ElevenLabs key), then paste the key in
   the Voice card at the bottom of the Automations tab (checked against the account, voices and speech models loaded,
