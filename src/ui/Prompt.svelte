@@ -44,7 +44,7 @@
     gap: 8px;
     align-items: flex-end;
     background: var(--surface);
-    border: 1px solid var(--line);
+    border: 1px solid var(--control-line);
     border-radius: 14px;
     padding: 6px;
   }

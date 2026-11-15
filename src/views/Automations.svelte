@@ -11,7 +11,12 @@
   import Icon from '../ui/Icon.svelte';
   import Settings from '../ui/Settings.svelte';
 
-  let { onchat }: { onchat: () => void } = $props();
+  let { onchat, active }: { onchat: () => void; active: boolean } = $props();
+  // Shell keeps every tab mounted; wait for the first visit so app start spends no n8n MCP calls (rate-limited) or LLM calls here.
+  let opened = $state(false);
+  $effect(() => {
+    if (active) opened = true;
+  });
 
   const base = $derived(app.conn?.base ?? '');
   let creds = $state<CredentialInfo[]>([]);
@@ -49,7 +54,7 @@
 
   $effect(() => {
     void chat.changed;
-    void load();
+    if (opened) void load();
   });
 
   // ----- analysis setup -----
@@ -115,7 +120,7 @@
   let ideas = $state<string[]>([]);
   $effect(() => {
     const types = [...new Set(creds.map((c) => c.type))].sort();
-    if (!app.llm || loading) return;
+    if (!opened || !app.llm || loading) return;
     const key = `invenstory.ideas.${types.join(',')}`;
     try {
       const cached = localStorage.getItem(key);
