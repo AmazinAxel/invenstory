@@ -11,6 +11,9 @@
   import Md from '../ui/Md.svelte';
   import Prompt from '../ui/Prompt.svelte';
   import Icon from '../ui/Icon.svelte';
+  import MicButton from '../ui/MicButton.svelte';
+  import VoiceBar from '../ui/VoiceBar.svelte';
+  import { voice } from '../state/voice.svelte.ts';
 
   // embedded: shown inside guided setup, which has no tab bar or page header of its own.
   let { active, embedded = false }: { active: boolean; embedded?: boolean } = $props();
@@ -71,6 +74,13 @@
     return 'text' in last ? splitOptions(last.text).body : '';
   });
 
+  // A new chat also ends anything voice was still saying or showing about the old one.
+  function newChat() {
+    voice.stopAudio();
+    voice.dismissQuick();
+    chat.newChat();
+  }
+
   let end: HTMLDivElement | undefined = $state();
   let composerH = $state(0);
 
@@ -109,7 +119,7 @@
   $effect(() => {
     const n = rows.length;
     // Also tracked: the typing line and end-of-turn notices change height without adding a row or a chunk.
-    void [chat.streaming, chat.running, chat.error, chat.ended];
+    void [chat.streaming, chat.running, chat.error, chat.ended, voice.quick];
     const grew = n > prevLen;
     prevLen = n;
     const opened = active && !wasActive;
@@ -129,13 +139,13 @@
   <header class="row between">
     <h1 hidden={embedded}>Chat</h1>
     {#if !embedded && chat.origin === 'analysis' && rows.length}<span class="muted small">Latest analysis</span>{/if}
-    <button class="chip" disabled={chat.running || !chat.messages.length} title="Starts a separate chat; earlier chats are no longer shown" onclick={() => chat.newChat()}>
+    <button class="chip" disabled={chat.running || !chat.messages.length} title="Starts a separate chat; earlier chats are no longer shown" onclick={newChat}>
       <Icon name="plus" size={16} /> New chat
     </button>
   </header>
 
   <p class="sr-only" aria-live="polite">{announce}</p>
-  <div class="log">
+  <div class="log" class:voiced={voice.enabled}>
     {#if !rows.length && !chat.running}
       <div class="bubble assistant">
         <p>Hi! I set up and run your stock and sales automations in n8n. Where do you keep your stock and sales today?</p>
@@ -198,6 +208,18 @@
       <p class="muted small typing">Working…</p>
     {/if}
 
+    {#if voice.quick}
+      <div class="quick">
+        <p class="muted small">Quick answer to “{voice.quick.question}” · not saved</p>
+        {#if voice.quick.error}
+          <p class="error small" role="alert">{voice.quick.error}</p>
+        {:else}
+          <div class="bubble assistant"><Md text={voice.quick.answer || '…'} /></div>
+        {/if}
+        <button type="button" class="link small" onclick={() => voice.dismissQuick()}>Dismiss</button>
+      </div>
+    {/if}
+
     {#if chat.ended === 'refusal'}<p class="muted small" role="status">The model declined to continue. Try rephrasing.</p>{/if}
     {#if chat.ended === 'step_limit'}<p class="muted small" role="status">Paused after many steps. Say “continue” to keep going.</p>{/if}
     {#if chat.ended === 'max_tokens'}<p class="muted small" role="status">The reply was cut off. Say “continue”.</p>{/if}
@@ -207,7 +229,10 @@
 
   <div class="composer" bind:offsetHeight={composerH}>
     {#if !pinned && unseen}<button class="chip jump" onclick={toBottom}><Icon name="down" size={16} /> Jump to latest</button>{/if}
-    <Prompt running={chat.running} onsend={(t) => chat.send(t)} onstop={() => chat.stop()} />
+    <VoiceBar />
+    <Prompt running={chat.running} onsend={(t) => chat.send(t)} onstop={() => chat.stop()}>
+      {#snippet extra()}{#if voice.enabled}<MicButton />{/if}{/snippet}
+    </Prompt>
   </div>
 </div>
 
@@ -223,6 +248,9 @@
     display: grid;
     gap: 10px;
     padding-bottom: 88px;
+  }
+  .log.voiced {
+    padding-bottom: 152px;
   }
   .bubble {
     max-width: 88%;
@@ -242,6 +270,20 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-bottom-left-radius: 4px;
+  }
+  .quick {
+    display: grid;
+    gap: 4px;
+    justify-items: start;
+    border-left: 3px solid var(--accent);
+    padding-left: 8px;
+  }
+  .quick .link {
+    min-height: 44px;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    padding: 0 4px;
   }
   .chips {
     display: flex;

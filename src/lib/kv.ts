@@ -48,4 +48,5 @@ export const K = {
   api: 'api',
   push: 'push',
   pushPrompted: 'push.prompted',
+  voice: 'voice',
 } as const;

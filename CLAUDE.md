@@ -45,7 +45,9 @@ Bugs found in live testing go into the CHANGELOG incident log.
 - `src/lib/n8n/` OAuth, MCP client, installer, data-plane API client, gate + policy, `core/` templates
 - `src/lib/agent/` tool subset (all n8n access for the LLM), system prompt, loop
 - `src/lib/llm/` adapters; `src/lib/sse.ts` shared SSE parser
-- `src/state/` runes stores (app, dashboard, chat) + pure `chat-history.ts`
+- `src/lib/voice/` optional voice mode (ElevenLabs engines behind `SttEngine`/`TtsEngine`, mic, playback, sentence
+  chunker); orchestration in `src/state/voice.svelte.ts`; AudioWorklet `public/voice-capture.js`. See the voice ADR in docs/adr/
+- `src/state/` runes stores (app, dashboard, chat, voice) + pure `chat-history.ts`
 - `src/views/`, `src/ui/` Svelte components; `public/sw.js` service worker
 - `scripts/n8n.ts` terminal access to n8n; `spike/` (gitignored) was Phase 0's throwaway browser relay
 

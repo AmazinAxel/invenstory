@@ -2,6 +2,8 @@
   import { app } from '../state/app.svelte.ts';
   import { chat } from '../state/chat.svelte.ts';
   import { dashboard } from '../state/dashboard.svelte.ts';
+  import { voice } from '../state/voice.svelte.ts';
+  import VoiceSettings from '../ui/VoiceSettings.svelte';
   import { analysisChoices, listCredentials, readRows, setupAnalysis, type CredentialInfo } from '../lib/n8n/install.ts';
   import type { ModelChoice } from '../lib/n8n/core/analyze.ts';
   import { NAME_PREFIX } from '../lib/agent/tools.ts';
@@ -224,6 +226,9 @@
       </ul>
     {/if}
   </section>
+
+  <!-- Only on devices that saved a voice key or opened the app once with ?voice (see state/voice.svelte.ts). -->
+  {#if voice.config || voice.setup}<VoiceSettings />{/if}
 </div>
 
 <style>

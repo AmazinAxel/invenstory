@@ -3,6 +3,8 @@
   import { app } from '../state/app.svelte.ts';
   import { disablePush, enablePush, pushState, type PushState } from '../lib/push.ts';
   import { kv, K } from '../lib/kv.ts';
+  import VoiceSettings from './VoiceSettings.svelte';
+  import { voice } from '../state/voice.svelte.ts';
 
   let push = $state<PushState | null>(null);
   let busy = $state(false);
@@ -57,3 +59,5 @@
   </div>
   <p class="muted small">Keys are stored on this device only. Disconnecting keeps your data in n8n.</p>
 </section>
+
+{#if voice.config || voice.setup}<VoiceSettings />{/if}
