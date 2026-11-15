@@ -1,10 +1,6 @@
 # Changelog
 
 ## Unreleased
-- Notifications are asked for with a one-time "Turn on notifications" card on the Dashboard; tapping it opens the
-  browser's own permission popup and enables push. It hides when push is unavailable, already on, blocked, or after
-  the owner taps "Not now". Why: the Automations-tab Settings card is going away (#14), and enabling push needs a
-  tap, so the prompt has to live somewhere the owner sees first. Afterwards the browser's site settings control it.
 - Automation ideas moved from the Automations tab to the empty Chat: the "Describe an automation" card is gone and
   the AI-suggested ideas show beside the starter chips. Why: it was a second, duplicate chat prompt; Chat is where
   automations are created, so ideas belong there. Ideas load when the empty chat is first seen (not at app start).

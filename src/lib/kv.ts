@@ -47,5 +47,4 @@ export const K = {
   setupDone: 'setup.done',
   api: 'api',
   push: 'push',
-  pushPrompted: 'push.prompted',
 } as const;
