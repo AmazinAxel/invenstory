@@ -36,7 +36,9 @@ the secret-path `invenstory-api` webhook (data plane), and the LLM provider (cha
 
 ## Recording changes
 Every change gets a why: commit message body explains the reason; user-visible or architectural changes get a
-CHANGELOG entry (with the reason) and, when a design choice is made or reversed, a new entry in docs/DECISIONS.md.
+CHANGELOG entry (with the reason) and, when a design choice is made or reversed, a new ADR: a file
+`docs/adr/NNNN-slug.md` (next number, heading `# D<N>. <title>`) plus the same title as an index line in
+docs/DECISIONS.md. `test/adr.test.ts` fails the release when the two disagree.
 Bugs found in live testing go into the CHANGELOG incident log.
 
 ## Where things are
@@ -64,4 +66,4 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root (both created lazily). See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` (created lazily) + `docs/adr/`, indexed by docs/DECISIONS.md. See `docs/agents/domain.md`.
