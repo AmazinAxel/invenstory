@@ -25,3 +25,4 @@ the same title as a line below. `test/adr.test.ts` fails the release if the inde
 - [D16. Release candidate, not 1.0.0](adr/0016-release-candidate.md)
 - [D17. Login-first LLM onboarding (OpenRouter OAuth, local Ollama)](adr/0017-login-first-llm-onboarding.md)
 - [D18. Dashboard locked behind guided setup](adr/0018-dashboard-locked-behind-setup.md)
+- [D19. Confirmation chips via a text convention](adr/0019-confirmation-chips-text-convention.md)

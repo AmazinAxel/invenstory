@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+- Chat shows outcomes, not process: each assistant turn's tool steps fold into one expandable "N steps" line (safety
+  gate refusals stay visible; the fold opens when a turn ends without a reply), and only the turn's last text shows.
+  The system prompt asks for at most 3 plain sentences, says "automation" instead of workflow/node/ids, and requires
+  a confirmation before publishing, running a writing automation or a registered action. Questions with a few obvious
+  answers end in `Options: A | B`, rendered as one-tap chips on the latest reply (D19). Why: owners are not
+  technical and were reading every tool call and narration line; confirmations were free-text only.
 - Faster onboarding: "Log in with OpenRouter" (OAuth PKCE, returns a user-owned key, default model
   `openrouter/auto`) and one-click local Ollama (no key, first installed model) are the default LLM choices; the
   API-key form moved behind "Use an API key instead". The n8n field accepts a bare Cloud name (`acme` ⇒
