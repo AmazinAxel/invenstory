@@ -166,3 +166,31 @@ describe('stored history', () => {
     expect(h[2]!.parts).toEqual(parts);
   });
 });
+
+import { repairHistory } from '../src/state/chat-history.ts';
+describe('repairHistory', () => {
+  const call = (id: string) => ({ type: 'tool_call' as const, id, name: 'n', input: {} });
+  const res = (id: string) => ({ type: 'tool_result' as const, id, content: 'ok' });
+  test('adds results for unanswered calls before the next user text, deterministically', () => {
+    const h: Message[] = [
+      { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+      { role: 'assistant', parts: [call('a'), call('b')] },
+      { role: 'user', parts: [{ type: 'text', text: 'hello?' }] },
+    ];
+    const r = repairHistory(h);
+    expect(r).toHaveLength(3);
+    expect(r[2]!.parts.map((p) => (p.type === 'tool_result' ? `r:${p.id}` : p.type))).toEqual(['r:a', 'r:b', 'text']);
+    expect(repairHistory(h)).toEqual(r);
+  });
+  test('partial answers are completed; a trailing call gets its own message; complete history is untouched', () => {
+    const r = repairHistory([
+      { role: 'assistant', parts: [call('a'), call('b')] },
+      { role: 'user', parts: [res('a')] },
+      { role: 'assistant', parts: [call('c')] },
+    ]);
+    expect(r[1]!.parts.map((p) => (p.type === 'tool_result' ? p.id : ''))).toEqual(['a', 'b']);
+    expect(r[3]).toMatchObject({ role: 'user', parts: [{ type: 'tool_result', id: 'c', isError: true }] });
+    const ok: Message[] = [{ role: 'assistant', parts: [call('x')] }, { role: 'user', parts: [res('x')] }];
+    expect(repairHistory(ok)).toEqual(ok);
+  });
+});

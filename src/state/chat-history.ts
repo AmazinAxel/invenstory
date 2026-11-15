@@ -21,6 +21,38 @@ export function fromStored(origin: string, rows: StoredMessage[]): Message[] {
       out.push({ role: r.role === 'assistant' ? 'assistant' : 'user', parts: [{ type: 'text', text: c }] });
     }
   }
-  return out;
+  return repairHistory(out);
 }
 
+
+const INTERRUPTED = 'Interrupted: this call did not finish (the app was reloaded or n8n was unavailable). Check the current state before retrying.';
+
+/**
+ * Every tool call must be answered in the next message. Calls left without a result (reload
+ * mid-run, a lost save) get a fixed "interrupted" result, inserted deterministically so the
+ * replayed history is identical on every turn.
+ */
+export function repairHistory(history: Message[]): Message[] {
+  const out: Message[] = [];
+  for (let i = 0; i < history.length; i++) {
+    const m = history[i]!;
+    out.push(m);
+    if (m.role !== 'assistant') continue;
+    const ids = m.parts.flatMap((p) => (p.type === 'tool_call' ? [p.id] : []));
+    if (!ids.length) continue;
+    const next = history[i + 1];
+    const answered = new Set(next?.role === 'user' ? next.parts.flatMap((p) => (p.type === 'tool_result' ? [p.id] : [])) : []);
+    const missing: Part[] = ids.filter((id) => !answered.has(id)).map((id) => ({ type: 'tool_result', id, content: INTERRUPTED, isError: true }));
+    if (!missing.length) continue;
+    if (next?.role === 'user') {
+      // Results first, then whatever the user wrote.
+      const results = next.parts.filter((p) => p.type === 'tool_result');
+      const rest = next.parts.filter((p) => p.type !== 'tool_result');
+      out.push({ role: 'user', parts: [...results, ...missing, ...rest] });
+      i++;
+    } else {
+      out.push({ role: 'user', parts: missing });
+    }
+  }
+  return out;
+}

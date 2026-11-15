@@ -3,7 +3,7 @@
 
 import { createLlm } from '../lib/llm/index.ts';
 import type { Message } from '../lib/llm/types.ts';
-import { fromStored, SNAPSHOT_MARK } from './chat-history.ts';
+import { fromStored, repairHistory, SNAPSHOT_MARK } from './chat-history.ts';
 import { runAgent, type LoopEnd } from '../lib/agent/loop.ts';
 import { systemPrompt } from '../lib/agent/prompt.ts';
 import { toolLabel, type ToolOutcome } from '../lib/agent/tools.ts';
@@ -102,9 +102,11 @@ class Chat {
       await this.ensureSession();
       const snap = snapshot(dashboard.data);
       const user: Message = { role: 'user', parts: [...(snap ? [{ type: 'text' as const, text: snap }] : []), { type: 'text', text: t }] };
+      // Repair any unanswered tool calls before the new message so it lands after their results.
+      this.messages = repairHistory($state.snapshot(this.messages) as Message[]);
       this.messages.push(user);
       void this.persist(user);
-      const history = $state.snapshot(this.messages) as Message[];
+      const history = repairHistory($state.snapshot(this.messages) as Message[]);
       const install = $state.snapshot(app.install) as typeof app.install;
       this.ended = await runAgent({
         llm: createLlm($state.snapshot(app.llm)),
