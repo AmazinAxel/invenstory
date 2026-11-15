@@ -8,6 +8,7 @@
   import { humanType } from '../lib/suggest.ts';
   import { ago } from '../lib/format.ts';
   import Icon from '../ui/Icon.svelte';
+  import ProviderForm from '../ui/ProviderForm.svelte';
 
   let { onchat, active }: { onchat: () => void; active: boolean } = $props();
   // Shell keeps every tab mounted; wait for the first visit so app start spends no n8n MCP calls (rate-limited) or LLM calls here.
@@ -17,6 +18,7 @@
   });
 
   const base = $derived(app.conn?.base ?? '');
+  let switching = $state(false);
   let creds = $state<CredentialInfo[]>([]);
   let llmCreds = $state<(CredentialInfo & { choice: ModelChoice })[]>([]);
   let flows = $state<{ id: string; name: string; active: boolean; updatedAt: string }[]>([]);
@@ -123,6 +125,17 @@
 <div class="stack">
   <h1>Automations</h1>
   {#if loadError}<p class="error small" role="alert">{loadError}</p>{/if}
+
+  <section class="card" aria-labelledby="h-provider">
+    <h2 id="h-provider">AI provider</h2>
+    {#if app.llm}<p class="ok small">Using {app.llm.label ?? 'Claude'} · {app.llm.model}</p>{/if}
+    {#if switching}
+      <ProviderForm onsaved={() => (switching = false)} />
+      <button class="link" onclick={() => (switching = false)}>Cancel</button>
+    {:else}
+      <button class="link" onclick={() => (switching = true)}>Switch provider</button>
+    {/if}
+  </section>
 
   <section class="card" aria-labelledby="h-analysis">
     <h2 id="h-analysis">Analysis</h2>

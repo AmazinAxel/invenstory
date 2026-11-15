@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { anthropic, blocksToParts, toAnthropicMessages } from '../src/lib/llm/anthropic.ts';
 import { openai, toChatMessages } from '../src/lib/llm/openai.ts';
 import { parseToolInput, type Message } from '../src/lib/llm/types.ts';
+import { buildLlmConfig } from '../src/lib/llm/config.ts';
 
 const history: Message[] = [
   { role: 'user', parts: [{ type: 'text', text: 'hi' }] },
@@ -128,5 +129,41 @@ describe('openai conversion', () => {
       { type: 'text', text: 'ok ' },
       { type: 'tool_call', id: 'c1', name: 'f', input: { x: 2 } },
     ]);
+  });
+});
+
+describe('buildLlmConfig', () => {
+  const oa = { protocol: 'openai' as const, apiKey: ' gsk_x ', baseUrl: ' https://api.groq.com/openai/v1/ ', model: ' llama-3.3-70b ' };
+
+  test('trims, strips trailing slashes and labels a known preset', () => {
+    expect(buildLlmConfig(oa)).toEqual({
+      protocol: 'openai',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      apiKey: 'gsk_x',
+      model: 'llama-3.3-70b',
+      label: 'Groq',
+    });
+  });
+
+  test('unknown base URL is labelled Custom', () => {
+    expect(buildLlmConfig({ ...oa, baseUrl: 'https://gw.example.com/v1' }).label).toBe('Custom');
+  });
+
+  test('remote URL needs a key, localhost does not', () => {
+    expect(() => buildLlmConfig({ ...oa, apiKey: '  ' })).toThrow(/key/i);
+    const local = buildLlmConfig({ ...oa, apiKey: '', baseUrl: 'http://localhost:11434/v1' });
+    expect(local.label).toBe('Ollama');
+    expect(local.apiKey).toBe('');
+  });
+
+  test('openai needs a base URL and a model', () => {
+    expect(() => buildLlmConfig({ ...oa, baseUrl: ' ' })).toThrow(/base url/i);
+    expect(() => buildLlmConfig({ ...oa, model: '' })).toThrow(/model/i);
+  });
+
+  test('anthropic: key required, default model, no base URL, effort kept', () => {
+    expect(() => buildLlmConfig({ protocol: 'anthropic', apiKey: '', baseUrl: '', model: '' })).toThrow(/key/i);
+    const c = buildLlmConfig({ protocol: 'anthropic', apiKey: ' sk-ant ', baseUrl: 'ignored', model: '', effort: 'high' });
+    expect(c).toEqual({ protocol: 'anthropic', baseUrl: '', apiKey: 'sk-ant', model: 'claude-opus-5-5', effort: 'high', label: 'Claude' });
   });
 });

@@ -3,7 +3,7 @@
 
 import { createLlm } from '../lib/llm/index.ts';
 import type { Message } from '../lib/llm/types.ts';
-import { fromStored, repairHistory, SNAPSHOT_MARK } from './chat-history.ts';
+import { fromStored, repairHistory, shouldAdopt, SNAPSHOT_MARK } from './chat-history.ts';
 import { runAgent, type LoopEnd } from '../lib/agent/loop.ts';
 import { systemPrompt } from '../lib/agent/prompt.ts';
 import { toolLabel, type ToolOutcome } from '../lib/agent/tools.ts';
@@ -41,6 +41,8 @@ class Chat {
   running = $state(false);
   streaming = $state('');
   error = $state<string | null>(null);
+  /** One-line status for screen readers, set by newChat() and cleared on the next send. */
+  notice = $state('');
   ended = $state<LoopEnd | null>(null);
   private controller: AbortController | null = null;
   private writes: Promise<unknown> = Promise.resolve();
@@ -54,7 +56,9 @@ class Chat {
     if (this.running) return;
     const sess = s.session;
     if (!sess) return;
-    if (sess.session_id === this.sessionId && sess.messages.length <= this.storedCount) return;
+    const cur = { sessionId: this.sessionId, storedCount: this.storedCount };
+    if (!shouldAdopt(cur, { session_id: sess.session_id, created_at: sess.created_at, messageCount: sess.messages.length }, this.resetAt)) return;
+    this.resetAt = null;
     this.sessionId = sess.session_id;
     this.origin = sess.origin;
     this.messages = fromStored(sess.origin, sess.messages);
@@ -63,6 +67,23 @@ class Chat {
     this.ended = null;
   }
   private storedCount = 0;
+  /** Set by newChat(): the summary's older session stays hidden until a newer one exists. */
+  private resetAt: number | null = null;
+
+  /** Starts a separate conversation. Nothing is written until the first message; old rows stay in n8n. */
+  newChat() {
+    if (this.running || !this.messages.length) return;
+    this.resetAt = Date.now();
+    this.sessionId = null;
+    this.origin = 'onboarding'; // same default ensureSession() gives a new chat
+    this.notice = 'New chat started';
+    this.messages = [];
+    this.storedCount = 0;
+    this.tools = {};
+    this.streaming = '';
+    this.error = null;
+    this.ended = null;
+  }
 
   private persist(m: Message) {
     const install = app.install!;
@@ -94,6 +115,7 @@ class Chat {
     const t = text.trim();
     if (!t || this.running || !app.llm || !app.install) return;
     this.running = true;
+    this.notice = '';
     this.error = null;
     this.ended = null;
     this.streaming = '';

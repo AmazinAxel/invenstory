@@ -237,3 +237,32 @@ describe('chatTurns', () => {
     expect(chatTurns(h)).toEqual([{ calls: [], text: 'Again' }]);
   });
 });
+
+import { shouldAdopt } from '../src/state/chat-history.ts';
+describe('shouldAdopt (summary session vs. current chat)', () => {
+  const sess = (id: string, at: string, n: number) => ({ session_id: id, created_at: at, messageCount: n });
+  const cur = { sessionId: 'c-1', storedCount: 2 };
+  const none = { sessionId: null, storedCount: 0 };
+  const reset = Date.parse('2026-11-15T10:00:00Z');
+
+  test('without a reset: adopts a different session or more messages, ignores an unchanged one', () => {
+    expect(shouldAdopt(cur, sess('a-9', '2026-11-15T09:00:00Z', 1), null)).toBe(true);
+    expect(shouldAdopt(cur, sess('c-1', '2026-11-15T09:00:00Z', 3), null)).toBe(true);
+    expect(shouldAdopt(cur, sess('c-1', '2026-11-15T09:00:00Z', 2), null)).toBe(false);
+  });
+
+  test('after a reset: the old session stays hidden', () => {
+    expect(shouldAdopt(none, sess('c-1', '2026-11-15T09:00:00Z', 4), reset)).toBe(false);
+  });
+
+  test('after a reset: a session created later (analysis or the new chat) is adopted', () => {
+    expect(shouldAdopt(none, sess('a-2', '2026-11-15T11:00:00Z', 1), reset)).toBe(true);
+    expect(shouldAdopt({ sessionId: 'c-2', storedCount: 1 }, sess('c-2', '2026-11-15T10:05:00Z', 2), reset)).toBe(true);
+    expect(shouldAdopt({ sessionId: 'c-2', storedCount: 2 }, sess('c-2', '2026-11-15T10:05:00Z', 2), reset)).toBe(false);
+  });
+
+  test('after a reset: equal or unparseable timestamps are not adopted', () => {
+    expect(shouldAdopt(none, sess('c-1', '2026-11-15T10:00:00Z', 4), reset)).toBe(false);
+    expect(shouldAdopt(none, sess('c-1', 'garbage', 4), reset)).toBe(false);
+  });
+});
