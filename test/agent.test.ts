@@ -194,3 +194,46 @@ describe('repairHistory', () => {
     expect(repairHistory(ok)).toEqual(ok);
   });
 });
+
+import { chatTurns, SNAPSHOT_MARK } from '../src/state/chat-history.ts';
+describe('chatTurns', () => {
+  const call = (id: string) => ({ type: 'tool_call' as const, id, name: 'n', input: {} });
+  const res = (id: string, content = 'ok', isError = false) => ({ type: 'tool_result' as const, id, content, isError });
+  const text = (t: string) => ({ type: 'text' as const, text: t });
+
+  test('one assistant turn spans tool rounds; last text wins, narration hidden', () => {
+    const h: Message[] = [
+      { role: 'user', parts: [text('Sync my sheet')] },
+      { role: 'assistant', parts: [text('Let me look.'), call('a')] },
+      { role: 'user', parts: [res('a')] },
+      { role: 'assistant', parts: [call('b')] },
+      { role: 'user', parts: [res('b', 'Refused by the safety gate', true)] },
+      { role: 'assistant', parts: [text('Ready to publish?\nOptions: Yes | Not yet')] },
+      { role: 'user', parts: [text('Yes')] },
+    ];
+    expect(chatTurns(h)).toEqual([
+      { user: 'Sync my sheet' },
+      { calls: [call('a'), call('b')], text: 'Ready to publish?\nOptions: Yes | Not yet' },
+      { user: 'Yes' },
+    ]);
+  });
+
+  test('a turn without final text keeps earlier text; snapshot text never shows', () => {
+    const h: Message[] = [
+      { role: 'user', parts: [text(`${SNAPSHOT_MARK} at x]\n{}`), text('How are sales?')] },
+      { role: 'assistant', parts: [text('Checking.'), call('a')] },
+      { role: 'user', parts: [res('a')] },
+      { role: 'assistant', parts: [call('b')] },
+    ];
+    expect(chatTurns(h)).toEqual([{ user: 'How are sales?' }, { calls: [call('a'), call('b')], text: 'Checking.' }]);
+  });
+
+  test('a snapshot-only user message does not split turns or show', () => {
+    const h: Message[] = [
+      { role: 'assistant', parts: [text('Hi')] },
+      { role: 'user', parts: [text(`${SNAPSHOT_MARK}]`)] },
+      { role: 'assistant', parts: [text('Again')] },
+    ];
+    expect(chatTurns(h)).toEqual([{ calls: [], text: 'Again' }]);
+  });
+});

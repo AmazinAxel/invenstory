@@ -1,9 +1,42 @@
 // Pure helpers for chat history (no runes, so tests can import them).
 
-import type { Message, Part } from '../lib/llm/types.ts';
+import { toolCalls, type Message, type Part } from '../lib/llm/types.ts';
 import type { StoredMessage } from '../lib/n8n/api.ts';
 
 export const SNAPSHOT_MARK = '[Dashboard snapshot';
+
+/** Text the owner may see: text parts minus the dashboard snapshot the app attaches for the model. */
+export function visibleText(m: Message): string {
+  return m.parts
+    .filter((p) => p.type === 'text' && !p.text.startsWith(SNAPSHOT_MARK))
+    .map((p) => (p.type === 'text' ? p.text : ''))
+    .join('\n\n');
+}
+
+export type ToolCall = Extract<Part, { type: 'tool_call' }>;
+export type Turn = { user: string } | { calls: ToolCall[]; text: string };
+
+/**
+ * Groups history for display: one turn per owner message, and one per run of assistant messages between them
+ * (tool-result-only user messages do not split a turn). An assistant turn keeps all its tool calls and only its
+ * last non-empty text; earlier text is narration between tool calls and stays hidden.
+ */
+export function chatTurns(messages: Message[]): Turn[] {
+  const out: Turn[] = [];
+  for (const m of messages) {
+    if (m.role === 'user') {
+      const text = visibleText(m);
+      if (text) out.push({ user: text });
+      continue;
+    }
+    let t = out.at(-1);
+    if (!t || 'user' in t) out.push((t = { calls: [], text: '' }));
+    t.calls.push(...toolCalls(m.parts));
+    const text = visibleText(m);
+    if (text.trim()) t.text = text;
+  }
+  return out;
+}
 
 /** Converts stored rows into the neutral history the adapters replay. */
 export function fromStored(origin: string, rows: StoredMessage[]): Message[] {
