@@ -1,0 +1,25 @@
+{
+  "name": "invenstory",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun vite",
+    "build": "bun --bun vite build",
+    "preview": "bun --bun vite preview",
+    "check": "bun --bun svelte-check --tsconfig ./tsconfig.json && bun --bun tsc -p tsconfig.node.json && bun --bun tsc -p tsconfig.functions.json",
+    "test": "bun test test/"
+  },
+  "dependencies": {
+    "svelte": "^5.57.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261115.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.9",
+    "@types/bun": "^1.4.4",
+    "svelte-check": "^4.7.8",
+    "typescript": "^6",
+    "vite": "^8.3.8"
+  }
+}

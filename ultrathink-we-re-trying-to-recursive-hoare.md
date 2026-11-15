@@ -4,8 +4,8 @@
 Setting up and maintaining inventory/stock and sales-tracking automation is technically hard, slow and error-prone for small businesses. Invenstory is a static, mobile-first PWA in which an LLM builds n8n workflows inside the user's own n8n, n8n ingests and analyses stock/sales data, and a fixed dashboard shows statistics, insights and one-tap action items. There is no server of ours and no accounts. Greenfield project at `/home/alec/Projects/invenstory`.
 
 ## Decisions fixed in the interview
-- **Hosting**: static files only (Cloudflare Pages-class host). No backend, no accounts.
-- **n8n**: the user's own instance (dev/test: n8n Cloud, paid plan). Connection = instance-level MCP server with OAuth login. If browser-only OAuth proves impossible: **stop and re-plan**, no substitute.
+- **Hosting**: static files plus one stateless MCP CORS proxy (Cloudflare Pages Function `functions/mcp.ts`, same origin as the app). No accounts, no stored state, nothing logged. *(Re-planned 2026-11-14 after Phase 0 check 2: n8n Cloud sends no CORS headers on the MCP endpoint.)*
+- **n8n**: the user's own instance (dev/test: n8n Cloud, paid plan). Connection = instance-level MCP server with OAuth login. OAuth discovery, client registration, authorize and token exchange run directly from the browser (verified, Phase 0 check 1); only MCP calls go through the proxy.
 - **State**: n8n data tables are the only store. The browser keeps only secrets and config.
 - **Analysis**: runs inside n8n (LLM credential also created in n8n), after data changes and on demand. No schedule.
 - **Chat agent**: runs in the browser, calls the LLM directly and drives n8n MCP tools.
@@ -22,14 +22,23 @@ Setting up and maintaining inventory/stock and sales-tracking automation is tech
 - **Deferred, planned only**: ElevenLabs realtime voice; PCA / dimensionality-reduction views.
 
 ## Verified facts
-- n8n MCP (`<instance>/mcp-server/http`) offers OAuth or bearer token; tools include `validate_workflow`, `create_workflow_from_code`, `update_workflow`, `publish_workflow`, `test_workflow`, `execute_workflow`, `get_workflow_details`, `search_workflow_executions`, `list_credentials`, `search_nodes`, `get_node_types`, `get_workflow_sdk_reference`, `create_data_table`, `add_data_table_rows`. It has **no** row read/update/delete and **no** credential creation. CORS allowances for MCP headers from n8n 2.36.
+- n8n MCP (`<instance>/mcp-server/http`) offers OAuth or bearer token; tools include `validate_workflow`, `create_workflow_from_code`, `update_workflow`, `publish_workflow`, `test_workflow`, `execute_workflow`, `get_workflow_details`, `search_workflow_executions`, `list_credentials`, `search_nodes`, `get_node_types`, `get_workflow_sdk_reference`, `create_data_table`, `add_data_table_rows`. It has **no** row read/update/delete and **no** credential creation.
+- Phase 0 on n8n Cloud 2.47.7: `/.well-known/oauth-protected-resource/mcp-server/http`, `/.well-known/oauth-authorization-server`, `/mcp-oauth/register|authorize|token` all work from the browser (CORS `*`); DCR accepts any redirect URI ("Allowed callback URLs: All"). `/mcp-server/http` sends **no** CORS headers and there is no setting for it, so browsers cannot call it directly.
 - n8n Cloud's Code node allows the `crypto` module (needed to sign Web Push).
 - Live CORS preflight passes for api.anthropic.com, api.openai.com, api.x.ai, openrouter.ai, api.groq.com and Gemini's OpenAI-compatible endpoint.
-- Everything else about n8n-from-a-browser is unverified and belongs to Phase 0.
+- Phase 0 results (2026-11-14, n8n Cloud 2.47.7, MCP server 1.2.0, protocol 2025-06-18, 70 tools):
+  1. Browser OAuth (DCR `token_endpoint_auth_method: none`, PKCE S256, `resource` param, scopes from protected-resource metadata) — pass. Access token 1 h + refresh token.
+  2. MCP via the `/mcp` proxy — pass. Server is stateless (no `mcp-session-id`); responses are JSON or SSE.
+  3. `validate_workflow` → `create_workflow_from_code` → `publish_workflow` of a webhook (custom path) + data-table insert + sub-workflow — pass. Credential binding still untested (instance had no credentials); `create_workflow_from_code` auto-assigns existing credentials of the matching type (`autoAssignedCredentials`).
+  4. Browser POST (JSON, preflighted) to the webhook — pass. Webhook option `allowedOrigins` answers preflight with exactly that origin.
+  5. Code node `require('crypto')` ES256 VAPID JWT (`createPrivateKey({format:'jwk'})`, `dsaEncoding:'ieee-p1363'`) → HTTP Request node payload-less POST → FCM 201 → service worker `push` event — pass. The Code sandbox has no network; sending must be an HTTP Request node.
+  6. `get_workflow_details` returns nodes with `type`, `typeVersion`, full `parameters` (`resource`, `operation`, `method`, `jsCode`, `workflowId`), `credentials`, plus `settings` — pass.
+  7. Webhook → data table → Execute Sub-workflow (wait) → Respond to Webhook — pass, 2.9 s round trip from the browser.
+- MCP also has `get_data_table_rows` (filter/sort/paginate); still no row update/delete tools.
 
 ## Architecture
 Browser (static) uses three channels:
-1. **Control plane** — MCP over streamable HTTP with OAuth → n8n: install core, build workflows, credentials, node catalogue, executions, append-only rows (chat messages, sessions, push subscriptions, action registry) so the chat log stays behind the login.
+1. **Control plane** — MCP over streamable HTTP with OAuth → same-origin proxy `/mcp` (header `x-n8n-instance: <origin>`) → `<instance>/mcp-server/http`: install core, build workflows, credentials, node catalogue, executions, append-only rows (chat messages, sessions, push subscriptions, action registry) so the chat log stays behind the login.
 2. **Data plane** — HTTPS to the `invenstory-api` webhook (secret path): all reads, plus synchronous mutations and runs (awaited fetch, no polling).
 3. **LLM** — HTTPS to the provider for the chat agent loop.
 
@@ -74,10 +83,11 @@ Violations are returned to the LLM as the tool error; publish/run is refused. Da
 ## App layout
 ```
 package.json  vite.config.ts  svelte.config.js  tsconfig.json  index.html
+functions/mcp.ts                  MCP CORS proxy (Pages Function); vite dev server mounts the same handler
 public/       manifest.webmanifest  sw.js  icon.svg  _headers
 src/main.ts   App.svelte  app.css
 src/lib/kv.ts                     IndexedDB key-value, shared with sw.js
-src/lib/n8n/mcp.ts                MCP client + OAuth provider (@modelcontextprotocol/sdk)
+src/lib/n8n/{oauth,mcp}.ts        OAuth (discovery, DCR, PKCE, refresh) + streamable-HTTP MCP client, hand-rolled as in the spike
 src/lib/n8n/install.ts            detect / install / upgrade tables + core workflows
 src/lib/n8n/core/{api,analyze,notify,error}.ts   SDK-code templates
 src/lib/n8n/api.ts                data-plane client
@@ -90,10 +100,10 @@ src/views/{Onboarding,Dashboard,Chat,Automations}.svelte
 src/ui/                           Kpi, StockList, Trend (hand SVG), TopSellers, ActionItem, Activity, Prompt, TabBar, icons
 test/                             gate, sse, draft, vapid
 ```
-Runtime dependencies: `svelte`, `@modelcontextprotocol/sdk` only. No UI, chart, PWA or LLM SDK libraries. bun 1.4.4 is system-wide; no flake needed.
+Runtime dependencies: `svelte` only. (`@modelcontextprotocol/sdk` dropped: its OAuth flow ties the resource to the server URL, which breaks behind the `/mcp` proxy; the hand-rolled client was verified in Phase 0.) No UI, chart, PWA or LLM SDK libraries. bun 1.4.4 in `~/.bun/bin`; no flake needed.
 
 ## Phases
-**0. Spike (blocking).** Throwaway page in `spike/`, run against the user's n8n Cloud with the user clicking through login. Checks: (1) browser OAuth incl. client registration, PKCE and token exchange; (2) MCP tool calls from the browser; (3) `create_workflow_from_code` + publish of a webhook workflow with custom path, data-table node and bound credential; (4) browser fetch to that webhook on Cloud; (5) Code-node ES256 signing and a push that arrives; (6) `get_workflow_details` exposes node type + operation for the gate; (7) synchronous sub-workflow run through the webhook inside Cloud's timeout. Check 1 failing → stop and re-plan. Any other failure → stop and report before continuing. Delete `spike/` afterwards.
+**0. Spike (blocking).** Throwaway page in `spike/`, run against the user's n8n Cloud with the user clicking through login. Checks: (1) browser OAuth incl. client registration, PKCE and token exchange; (2) MCP tool calls from the browser through the `/mcp` proxy (spike: emulated in `spike/server.py`); (3) `create_workflow_from_code` + publish of a webhook workflow with custom path, data-table node and bound credential; (4) browser fetch to that webhook on Cloud; (5) Code-node ES256 signing and a push that arrives; (6) `get_workflow_details` exposes node type + operation for the gate; (7) synchronous sub-workflow run through the webhook inside Cloud's timeout. Check 1 failing → stop and re-plan. Any other failure → stop and report before continuing. Delete `spike/` afterwards.
 
 **1. Scaffold + connect.** Project, kv store, n8n URL entry, OAuth, LLM provider form with a test call.
 
@@ -107,7 +117,7 @@ Runtime dependencies: `svelte`, `@modelcontextprotocol/sdk` only. No UI, chart, 
 
 **6. Push + PWA.** Manifest, service worker (app shell + push handler), VAPID keygen, subscribe, notification on new action items and failures.
 
-**7. Finish.** Mobile pass (safe areas, touch targets, bundle size), CSP, `bun run build` → `dist/` ready for any static host. Deployment is not performed unless asked.
+**7. Finish.** Mobile pass (safe areas, touch targets, bundle size), CSP, `bun run build` → `dist/` + `functions/` ready for Cloudflare Pages (other hosts need an equivalent `/mcp` proxy route). Deployment is not performed unless asked.
 
 ## Deferred (planned, not built now)
 - **Voice — ElevenLabs realtime.** Preferred shape: ElevenLabs realtime speech-to-text and streaming text-to-speech wrapped around the existing browser agent loop, so the user's LLM and the gate stay in charge; ElevenLabs key entered like the LLM key. Browser access to those endpoints must be verified first. Voice-driven suggestions come with it.
@@ -120,7 +130,14 @@ Runtime dependencies: `svelte`, `@modelcontextprotocol/sdk` only. No UI, chart, 
 ## Prerequisites from the user
 n8n Cloud instance URL on 2.36+ with instance-level MCP enabled; an LLM credential created in n8n; an LLM API key for the app.
 
+## MCP proxy (`functions/mcp.ts`)
+- Accepts POST/GET/DELETE on `/mcp`; target from `x-n8n-instance` (https origin only, no path); forwards only to `<target>/mcp-server/http`.
+- Forwards only `authorization`, `content-type`, `accept`, `mcp-session-id`, `mcp-protocol-version`, `last-event-id`; returns body streamed (SSE) with `content-type`, `mcp-session-id`, `www-authenticate`.
+- Host allowlist from env `N8N_ALLOWED_HOSTS` (default `*.app.n8n.cloud`); no logging, no storage.
+- Self-hosted n8n behind the user's own reverse proxy can add CORS there and skip the proxy (config switch "direct").
+
 ## Known risks
+- The bearer token transits the proxy (our edge function); whoever operates the deployment could read it.
 - Anyone holding the secret webhook URL can read business data and chat history and trigger registered runs.
 - Secrets sit unencrypted in browser storage.
 - The gate's node lists need upkeep; unlisted connectors are refused until added.
