@@ -138,7 +138,7 @@
         {loginBusy ? 'Opening n8n…' : 'Log in with n8n'}
       </button>
     {/if}
-    {#if loginError}<p class="error small">{loginError}</p>{/if}
+    {#if loginError}<p class="error small" role="alert">{loginError}</p>{/if}
   </section>
 
   <section class="card" aria-labelledby="step-llm">
@@ -150,7 +150,7 @@
       <button class="primary" disabled={llmBusy} onclick={openRouterLogin}>Log in with OpenRouter</button>
       <button disabled={llmBusy} onclick={useOllama}>{llmBusy ? 'Looking for Ollama…' : 'Use Ollama on this computer'}</button>
       <div class="row"><button class="link" onclick={() => (showForm = true)}>Use an API key instead</button></div>
-      {#if llmResult}<p class="small {llmResult.ok ? 'ok' : 'error'}">{llmResult.text}</p>{/if}
+      {#if llmResult}<p class="small {llmResult.ok ? 'ok' : 'error'}" role={llmResult.ok ? 'status' : 'alert'}>{llmResult.text}</p>{/if}
     {:else}
     <div class="segmented" role="group" aria-label="Protocol">
       <button aria-pressed={protocol === 'anthropic'} onclick={() => pickProtocol('anthropic')}>Claude</button>
@@ -189,7 +189,7 @@
     <button class="primary" disabled={(!apiKey.trim() && (protocol === 'anthropic' || preset !== 'Ollama')) || (protocol === 'openai' && (!model.trim() || !baseUrl.trim())) || llmBusy} onclick={testAndSave}>
       {llmBusy ? 'Testing…' : 'Test and save'}
     </button>
-    {#if llmResult}<p class="small {llmResult.ok ? 'ok' : 'error'}">{llmResult.text}</p>{/if}
+    {#if llmResult}<p class="small {llmResult.ok ? 'ok' : 'error'}" role={llmResult.ok ? 'status' : 'alert'}>{llmResult.text}</p>{/if}
     <p class="muted small">The key stays on this device.</p>
     {/if}
   </section>

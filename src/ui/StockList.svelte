@@ -51,7 +51,7 @@
     <Icon name="search" size={18} />
     <input bind:value={q} oninput={search} placeholder="Search name or SKU" type="search" autocapitalize="off" />
   </label>
-  {#if error}<p class="error small">{error}</p>{/if}
+  {#if error}<p class="error small" role="alert">{error}</p>{/if}
   {#if items.length}
     <ul class="list">
       {#each items as p (p.sku)}
