@@ -110,7 +110,7 @@ class Chat {
         llm: createLlm($state.snapshot(app.llm)),
         system: systemPrompt(install, dashboard.data?.currency ?? 'USD'),
         history,
-        ctx: { mcp: app.mcp, install, onChange: () => (this.changed = Date.now()) },
+        ctx: { mcp: app.mcp, install, sessionId: this.sessionId ?? undefined, onChange: () => (this.changed = Date.now()) },
         signal: this.controller.signal,
         events: {
           onText: (d) => (this.streaming += d),

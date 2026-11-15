@@ -5,6 +5,8 @@ import { readSse } from '../sse.ts';
 import { accessToken, refresh, type Connection } from './oauth.ts';
 
 const PROTOCOL = '2025-06-18';
+const RATE_RETRIES = [2000, 5000, 10000];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface ToolContent {
   type: string;
@@ -81,7 +83,15 @@ export class Mcp {
       url = '/mcp';
       headers['x-n8n-instance'] = new URL(this.conn.base).origin;
     }
-    const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ jsonrpc: '2.0', ...msg }) });
+    const body = JSON.stringify({ jsonrpc: '2.0', ...msg });
+    let r = await fetch(url, { method: 'POST', headers, body });
+    // n8n Cloud rate-limits MCP; back off and retry a few times before giving up.
+    for (let attempt = 0; r.status === 429 && attempt < RATE_RETRIES.length; attempt++) {
+      const after = Number(r.headers.get('retry-after'));
+      await sleep(Number.isFinite(after) && after > 0 ? Math.min(after, 30) * 1000 : RATE_RETRIES[attempt]!);
+      r = await fetch(url, { method: 'POST', headers, body });
+    }
+    if (r.status === 429) throw new McpError('n8n is rate-limiting requests right now. Wait a minute and try again.', 429);
     if (r.status === 401 && !retried) {
       await refresh(this.conn);
       return this.post(msg, true);
@@ -105,7 +115,11 @@ export class Mcp {
       }
       throw new McpError('MCP stream ended without a response');
     }
-    if (ct.includes('json')) return (await r.json()) as RpcResponse;
+    if (ct.includes('json')) {
+      const j = (await r.json()) as RpcResponse & { jsonrpc?: string; message?: string };
+      if (!j.jsonrpc) throw new McpError(`n8n: ${j.message ?? `HTTP ${r.status}`}`, r.status);
+      return j;
+    }
     throw new McpError(`MCP HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
   }
 
@@ -140,6 +154,7 @@ export class Mcp {
     const res = await this.post({ id: this.nextId++, method, params });
     if (!res) throw new McpError(`No response to ${method}`);
     if (res.error) throw new McpError(res.error.message, res.error.code, res.error.data);
+    if (res.result === undefined) throw new McpError(`Empty response to ${method}`);
     return res.result as T;
   }
 

@@ -17,6 +17,8 @@ const MAX_REFERENCE = 120_000;
 export interface AgentContext {
   mcp: Mcp;
   install: InstallInfo;
+  /** Current chat session, for rows the tools create. */
+  sessionId?: string;
   /** Called after a workflow is created, changed, published or registered. */
   onChange?: () => void;
 }
@@ -282,8 +284,17 @@ const TOOLS: AgentTool[] = [
       schema: obj({ workflowId: s('workflow id'), executionId: s('execution id'), includeData: { type: 'boolean' } }, ['workflowId', 'executionId']),
     },
     label: () => 'Checking the run',
-    run: (i, ctx) =>
-      raw(ctx, 'get_workflow_execution', { workflowId: i.workflowId, executionId: i.executionId, includeData: !!i.includeData, truncateData: 5 }, true),
+    run: async (i, ctx) => {
+      // Waits for a running execution (up to ~40 s) so the model does not poll in a loop.
+      const args = { workflowId: i.workflowId, executionId: i.executionId };
+      for (let n = 0; n < 8; n++) {
+        const meta = await ctx.mcp.call<{ execution?: { status?: string } }>('get_workflow_execution', { ...args, includeData: false });
+        const st = meta.execution?.status;
+        if (st && !['running', 'new', 'waiting'].includes(st)) break;
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+      return raw(ctx, 'get_workflow_execution', { ...args, includeData: !!i.includeData, truncateData: 5 }, true);
+    },
   },
   {
     def: {
@@ -346,6 +357,50 @@ const TOOLS: AgentTool[] = [
       });
       ctx.onChange?.();
       return { content: `Registered ${wf.name} as an action.`, summary: 'Action registered' };
+    },
+  },
+  {
+    def: {
+      name: 'invenstory_run_action',
+      description:
+        'Run a registered action now with an input (e.g. record a sale the owner tells you about). Goes through the same checked path as tapping an action item and waits for the result. Use this instead of building helper workflows.',
+      schema: obj(
+        { workflowId: s('id of a registered action'), input: { type: 'object', description: 'input matching the action input schema' }, title: s('what this run does, for the log') },
+        ['workflowId', 'input', 'title'],
+      ),
+    },
+    label: (i) => `Running action: ${String(i.title ?? '')}`,
+    run: async (i, ctx) => {
+      const wf = await owned(ctx, i.workflowId);
+      const reg = await ctx.mcp.call<{ rows: unknown[] }>('get_data_table_rows', {
+        dataTableId: ctx.install.tables.inv_actions,
+        projectId: ctx.install.projectId,
+        filter: { type: 'and', filters: [{ columnName: 'workflow_id', condition: 'eq', value: wf.id }] },
+        limit: 1,
+      });
+      if (!reg.rows.length) throw new ToolFailure('That workflow is not registered as an action. Register it first.');
+      await gateOrThrow(ctx, wf);
+      const itemId = `chat-${crypto.randomUUID()}`;
+      await ctx.mcp.call('add_data_table_rows', {
+        dataTableId: ctx.install.tables.inv_action_items,
+        projectId: ctx.install.projectId,
+        rows: [
+          {
+            item_id: itemId,
+            session_id: ctx.sessionId ?? '',
+            created_at: new Date().toISOString(),
+            title: String(i.title).slice(0, 120),
+            detail: 'Run from chat',
+            kind: 'run',
+            workflow_id: wf.id,
+            input: JSON.stringify(i.input ?? {}),
+            status: 'open',
+          },
+        ],
+      });
+      const r = await new Api(ctx.install.apiUrl).run(itemId);
+      ctx.onChange?.();
+      return { content: UNTRUSTED + clip(JSON.stringify(r.output)), summary: 'Action done' };
     },
   },
   {

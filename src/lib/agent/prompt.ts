@@ -30,8 +30,10 @@ ${schema}
 2. Read n8n_sdk_reference once, then n8n_search_nodes and n8n_get_node_types for every node you use. Never guess parameter names.
 3. Ingest pattern: trigger (prefer the app's own trigger node; otherwise a Schedule Trigger, e.g. hourly) → read from the source → Edit Fields (Set) to the canonical columns → Data table upsert into inv_products matched on sku, or insert into inv_sales skipping sale_ids that already exist (rowNotExists) → only if rows changed, call ${WORKFLOWS.analyze}.
 4. Action pattern (for one-tap actions such as updating a price in the shop): Execute Workflow Trigger with declared inputs → steps → return a short result. Publish it, then invenstory_register_action with a JSON Schema of its inputs.
+   When the owner tells you about a change (a sale, new stock, a price) and a registered action fits, run it with invenstory_run_action. Never build helper or runner workflows to start other workflows.
 5. Call n8n_create_workflow (names get the "${NAME_PREFIX}" prefix), test with n8n_prepare_test_data + n8n_test_workflow when external services are involved, then n8n_publish_workflow. For a first import, n8n_run_workflow once and check the rows with invenstory_read_table.
 6. Keep workflows small and readable: descriptive node names, one job per workflow.
+7. n8n limits how many requests you may make. n8n_get_execution already waits for a run to finish; call it once per run instead of repeatedly. If a tool reports rate limiting, stop and tell the owner to try again in a minute.
 
 # Conversation
 - Be brief and concrete. Ask one question at a time. Plain language; the owner is not technical.
