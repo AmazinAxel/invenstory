@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { nearBottom } from '../lib/scroll.ts';
-  import { chat, SNAPSHOT_MARK } from '../state/chat.svelte.ts';
+  import { chat } from '../state/chat.svelte.ts';
+  import { chatTurns, visibleText, type ToolCall } from '../state/chat-history.ts';
   import { toolLabel } from '../lib/agent/tools.ts';
-  import { toolCalls, type Message, type Part } from '../lib/llm/types.ts';
   import { splitOptions } from '../lib/agent/options.ts';
   import Md from '../ui/Md.svelte';
   import Prompt from '../ui/Prompt.svelte';
@@ -21,34 +21,9 @@
     return m;
   });
 
-  function visibleText(m: Message): string {
-    return m.parts
-      .filter((p) => p.type === 'text' && !p.text.startsWith(SNAPSHOT_MARK))
-      .map((p) => (p.type === 'text' ? p.text : ''))
-      .join('\n\n');
-  }
-
   const rows = $derived(chat.messages.filter((m) => m.role === 'assistant' || visibleText(m)));
-
-  // One turn = everything the assistant did between two owner messages. The owner sees its tool calls folded and
-  // only its last text (text written between tool calls is narration, hidden).
-  type Call = Extract<Part, { type: 'tool_call' }>;
-  type Turn = { user: string } | { calls: Call[]; text: string };
-  const turns = $derived.by(() => {
-    const out: Turn[] = [];
-    for (const m of rows) {
-      if (m.role === 'user') {
-        out.push({ user: visibleText(m) });
-        continue;
-      }
-      let t = out.at(-1);
-      if (!t || 'user' in t) out.push((t = { calls: [], text: '' }));
-      t.calls.push(...toolCalls(m.parts));
-      const text = visibleText(m);
-      if (text.trim()) t.text = text;
-    }
-    return out;
-  });
+  // Tool calls fold; only each turn's last text shows (see chatTurns).
+  const turns = $derived(chatTurns(chat.messages));
 
   function status(id: string): string {
     const live = chat.tools[id];
@@ -66,6 +41,7 @@
 
   let end: HTMLDivElement | undefined = $state();
   let composerH = $state(0);
+
   // Follow new content only while the owner is at the bottom; if they scrolled up to read, leave them and offer a jump.
   // `pinned` changes only on scroll events, never on content growth, so a long chunk can't unpin a following view.
   let pinned = $state(true);
@@ -124,7 +100,7 @@
       </div>
     {/if}
 
-    {#snippet toolRow(p: Call)}
+    {#snippet toolRow(p: ToolCall)}
       {@const live = chat.tools[p.id]}
       {@const s = status(p.id)}
       <div class="tool {s}">
