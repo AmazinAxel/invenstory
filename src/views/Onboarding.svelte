@@ -6,6 +6,7 @@
   import { OPENAI_PRESETS } from '../lib/llm/openai.ts';
   import { beginOpenRouterLogin, OPENROUTER_DEFAULT_MODEL } from '../lib/llm/openrouter.ts';
   import type { Effort, LlmConfig, Protocol } from '../lib/llm/types.ts';
+  import Brand from '../ui/Brand.svelte';
   import InstallStep from './InstallStep.svelte';
 
   let base = $state(app.conn?.base ?? '');
@@ -109,7 +110,7 @@
 
 <main class="stack">
   <header class="stack" style="gap: 4px">
-    <h1>Invenstory</h1>
+    <h1><Brand /></h1>
     <p class="muted">Stock and sales automation inside your own n8n.</p>
   </header>
 
