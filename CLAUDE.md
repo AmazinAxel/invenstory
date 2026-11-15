@@ -51,3 +51,17 @@ Bugs found in live testing go into the CHANGELOG incident log.
 Live n8n checks need either the app (browser login) or `scripts/n8n.ts` with an MCP access token. The LLM key lives
 only in the user's browser, so Claude cannot call the LLM from the terminal: ask the user to run chat scenarios and
 paste errors. docs/TESTING.md has the manual end-to-end script and what is already verified.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on AmazinAxel/invenstory via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root (both created lazily). See `docs/agents/domain.md`.
