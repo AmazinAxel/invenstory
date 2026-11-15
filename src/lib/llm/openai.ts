@@ -20,6 +20,7 @@ export const OPENAI_PRESETS = [
   { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
   { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
   { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1' },
+  { label: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
 ] as const;
 
 type ChatMessage =
@@ -71,7 +72,7 @@ export function openai(cfg: LlmConfig): Llm {
       }
       const r = await fetch(`${base}/chat/completions`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}` },
+        headers: { 'content-type': 'application/json', ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}) },
         body: JSON.stringify(body),
         signal: req.signal,
       });

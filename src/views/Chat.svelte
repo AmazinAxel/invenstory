@@ -7,7 +7,8 @@
   import Prompt from '../ui/Prompt.svelte';
   import Icon from '../ui/Icon.svelte';
 
-  let { active }: { active: boolean } = $props();
+  // embedded: shown inside guided setup, which has no tab bar or page header of its own.
+  let { active, embedded = false }: { active: boolean; embedded?: boolean } = $props();
 
   const STARTERS = ['My stock is in Google Sheets', 'I sell on Shopify', 'I use WooCommerce', 'What can you do?'];
 
@@ -35,8 +36,8 @@
   });
 </script>
 
-<div class="chat">
-  <header class="row between">
+<div class="chat" class:embedded>
+  <header class="row between" hidden={embedded}>
     <h1>Chat</h1>
     {#if chat.origin === 'analysis' && rows.length}<span class="muted small">Latest analysis</span>{/if}
   </header>
@@ -197,5 +198,8 @@
     background: linear-gradient(to top, var(--bg) 70%, transparent);
     max-width: 960px;
     margin: 0 auto;
+  }
+  .embedded .composer {
+    bottom: env(safe-area-inset-bottom);
   }
 </style>

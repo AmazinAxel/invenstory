@@ -5,6 +5,8 @@
   import Dashboard from './Dashboard.svelte';
   import Chat from './Chat.svelte';
   import Automations from './Automations.svelte';
+  import Setup from './Setup.svelte';
+  import { setup } from '../state/setup.svelte.ts';
 
   const saved = (() => {
     try {
@@ -26,7 +28,9 @@
   }
 
   onMount(() => {
-    void dashboard.refresh('open');
+    void setup.load().then(() => {
+      if (setup.done) void dashboard.refresh('open');
+    });
     const onVisible = () => document.visibilityState === 'visible' && void dashboard.refresh('focus');
     const onMessage = (e: MessageEvent) => (e.data as { type?: string })?.type === 'push' && void dashboard.refresh('push');
     document.addEventListener('visibilitychange', onVisible);
@@ -38,12 +42,18 @@
   });
 </script>
 
-<main>
-  <div hidden={tab !== 'dashboard'}><Dashboard onchat={() => select('chat')} /></div>
-  <div hidden={tab !== 'chat'}><Chat active={tab === 'chat'} /></div>
-  <div hidden={tab !== 'automations'}><Automations onchat={() => select('chat')} /></div>
-</main>
-<TabBar {tab} onselect={select} badge={{ dashboard: dashboard.data?.action_items.length ?? 0 }} />
+{#if setup.done === null}
+  <p class="muted" style="padding: 24px 16px">Loading…</p>
+{:else if !setup.done}
+  <main><Setup /></main>
+{:else}
+  <main>
+    <div hidden={tab !== 'dashboard'}><Dashboard onchat={() => select('chat')} /></div>
+    <div hidden={tab !== 'chat'}><Chat active={tab === 'chat'} /></div>
+    <div hidden={tab !== 'automations'}><Automations onchat={() => select('chat')} /></div>
+  </main>
+  <TabBar {tab} onselect={select} badge={{ dashboard: dashboard.data?.action_items.length ?? 0 }} />
+{/if}
 
 <style>
   main {
