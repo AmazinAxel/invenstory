@@ -157,11 +157,13 @@ const b64u = (b) => Buffer.from(b).toString('base64url');
 const header = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' }));
 const exp = Math.floor(Date.now() / 1000) + 12 * 3600;
 const auth = {};
+const seen = {};
 const out = [];
 for (const item of $input.all()) {
   const endpoint = item.json.endpoint;
   const m = typeof endpoint === 'string' ? /^https:\/\/[^/]+/.exec(endpoint) : null;
-  if (!m) continue;
+  if (!m || seen[endpoint]) continue;
+  seen[endpoint] = true;
   const aud = m[0];
   if (!auth[aud]) {
     const claims = b64u(JSON.stringify({ aud, exp, sub: 'mailto:push@invenstory.invalid' }));
@@ -224,3 +226,15 @@ function run(input) {
   };
 }
 `;
+
+/** Recovers the VAPID key pair embedded in an installed Sign Push node (for in-place upgrades). */
+export function extractVapid(jsCode: string): { privateJwk: JsonWebKey; publicKey: string } | null {
+  const k = /createPrivateKey\(\{ key: (\{[^}]*\}), format: 'jwk' \}\)/.exec(jsCode);
+  const p = /const pub = ("[^"]+");/.exec(jsCode);
+  if (!k || !p) return null;
+  try {
+    return { privateJwk: JSON.parse(k[1]!) as JsonWebKey, publicKey: JSON.parse(p[1]!) as string };
+  } catch {
+    return null;
+  }
+}

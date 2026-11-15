@@ -4,6 +4,7 @@
 
 import { CORE_VERSION, TABLES, TABLE_NAMES, WORKFLOWS, type CoreWorkflow, type TableIds, type TableName } from './core/schema.ts';
 import { apiWorkflow, errorWorkflow, notifyWorkflow } from './core/templates.ts';
+import { extractVapid, signPushCode } from './core/code.ts';
 import { MODEL_CHOICES, analyzeWorkflow, type ModelChoice } from './core/analyze.ts';
 
 export interface McpLike {
@@ -201,7 +202,12 @@ export async function install(mcp: McpLike, o: InstallOptions): Promise<InstallI
     }
   }
 
-  if (!config.version) newConfig.version = String(CORE_VERSION);
+  const installed = Number(config.version || CORE_VERSION);
+  if (installed < CORE_VERSION && !newConfig.vapid_public_key) {
+    step('Updating Invenstory…');
+    await upgradeCore(mcp, workflows, installed);
+  }
+  if (!config.version || installed < CORE_VERSION) newConfig.version = String(CORE_VERSION);
   if (!config.base_currency) newConfig.base_currency = o.baseCurrency.toUpperCase();
   if (config.notify_workflow_id !== workflows.notify) newConfig.notify_workflow_id = workflows.notify;
   await appendConfig(mcp, cfgTable, newConfig);
@@ -210,13 +216,29 @@ export async function install(mcp: McpLike, o: InstallOptions): Promise<InstallI
   return {
     base: o.base,
     projectId,
-    version: Number(config.version ?? CORE_VERSION),
+    version: CORE_VERSION,
     apiUrl: `${o.base}/webhook/${path}`,
     tables,
     workflows,
     origins,
     vapidPublicKey,
   };
+}
+
+/** In-place upgrades of installed core workflows (ids and VAPID keys are kept). */
+async function upgradeCore(mcp: McpLike, workflows: Partial<Record<CoreWorkflow, string>>, from: number) {
+  if (from < 2 && workflows.notify) {
+    // v2: Sign Push skips duplicate subscription rows.
+    const d = await mcp.call<WorkflowDetails>('get_workflow_details', { workflowId: workflows.notify });
+    const node = d.workflow.nodes.find((n) => n.name === 'Sign Push');
+    const keys = node && extractVapid(String(node.parameters.jsCode ?? ''));
+    if (!keys) throw new Error('Could not upgrade invenstory-notify: signing node not found.');
+    await mcp.call('update_workflow', {
+      workflowId: workflows.notify,
+      operations: [{ type: 'setNodeParameter', nodeName: 'Sign Push', path: '/jsCode', value: signPushCode(keys.privateJwk, keys.publicKey) }],
+    });
+    await mcp.call('publish_workflow', { workflowId: workflows.notify });
+  }
 }
 
 /** True when everything an install needs already exists (used to skip the install step on a new device). */

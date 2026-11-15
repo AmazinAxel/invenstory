@@ -9,6 +9,7 @@
   import { ago } from '../lib/format.ts';
   import Prompt from '../ui/Prompt.svelte';
   import Icon from '../ui/Icon.svelte';
+  import Settings from '../ui/Settings.svelte';
 
   let { onchat }: { onchat: () => void } = $props();
 
@@ -240,6 +241,8 @@
       </ul>
     {/if}
   </section>
+
+  <Settings />
 </div>
 
 <style>

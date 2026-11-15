@@ -60,4 +60,4 @@ export const WORKFLOWS = {
 export type CoreWorkflow = keyof typeof WORKFLOWS;
 
 /** Bumped whenever a core template changes; stored in inv_config.version. */
-export const CORE_VERSION = 1;
+export const CORE_VERSION = 2;

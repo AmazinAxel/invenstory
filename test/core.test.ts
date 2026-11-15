@@ -135,3 +135,18 @@ describe('SDK serializer', () => {
     expect(code).not.toMatch(/value: (undefined|null)\b/);
   });
 });
+
+import { extractVapid } from '../src/lib/n8n/core/code.ts';
+describe('push upgrade helpers', () => {
+  test('signing code dedupes endpoints and its keys can be recovered', async () => {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    const src = signPushCode(jwk, 'PUBKEY');
+    const items = [{ json: { endpoint: 'https://a.example/x' } }, { json: { endpoint: 'https://a.example/x' } }];
+    const fn = new Function('require', '$input', 'Buffer', src) as (r: unknown, i: unknown, b: unknown) => unknown[];
+    expect(fn(require, { all: () => items }, Buffer)).toHaveLength(1);
+    const k = extractVapid(src)!;
+    expect(k.publicKey).toBe('PUBKEY');
+    expect(k.privateJwk.d).toBe(jwk.d);
+  });
+});
