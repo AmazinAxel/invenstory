@@ -122,8 +122,8 @@
   }
 </script>
 
-<div class="stack">
-  <h1>Automations</h1>
+<div class="stack automations">
+  <header><h1>Automations</h1><p class="intro">Your workflows, connections, and everyday routines.</p></header>
   {#if loadError}<p class="error small" role="alert">{loadError}</p>{/if}
 
   <section class="card" aria-labelledby="h-provider">
@@ -227,6 +227,14 @@
 </div>
 
 <style>
+  .automations { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: clamp(8px, 2vw, 24px); }
+  header { padding: 8px 0 10px; }
+  .intro { margin-top: 10px; color: var(--muted); font-size: 14px; }
+  .card { padding: 24px; gap: 16px; min-width: 0; }
+  .card h2 { font-size: 25px; }
+  .list .main > span:first-child { font-weight: 550; }
+  .list li { gap: 16px; padding: 16px 0; }
+  .button { justify-self: start; background: #f2e4d8; }
   .list {
     list-style: none;
     margin: 0;
@@ -262,15 +270,6 @@
     background: var(--ok);
     border-color: var(--ok);
   }
-  .open {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    margin: -10px -12px -10px 0;
-    flex: none;
-  }
   .button {
     display: inline-flex;
     align-items: center;
@@ -285,4 +284,5 @@
   h3 {
     margin-top: 8px;
   }
+.open { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; flex:none; }
 </style>

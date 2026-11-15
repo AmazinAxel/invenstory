@@ -14,7 +14,8 @@
     "deploy:preview": "bunx wrangler@4 pages dev dist"
   },
   "dependencies": {
-    "svelte": "^5.57.3"
+    "svelte": "^5.57.3",
+    "d3-hierarchy": "^3.1.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261115.1",
@@ -23,7 +24,8 @@
     "@types/bun": "^1.4.4",
     "svelte-check": "^4.7.8",
     "typescript": "^6",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "@types/d3-hierarchy": "^3.1.7"
   },
   "description": "Stock and sales automation inside your own n8n: static PWA + one stateless MCP proxy."
 }

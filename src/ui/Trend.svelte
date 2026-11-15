@@ -1,9 +1,9 @@
 <script lang="ts">
   import { money, shortDate } from '../lib/format.ts';
 
-  let { data, currency }: { data: { date: string; revenue: number; units: number }[]; currency: string } = $props();
+  let { data, currency, height = 168 }: { data: { date: string; revenue: number; units: number }[]; currency: string; height?: number } = $props();
 
-  const H = 168;
+  const H = $derived(height);
   const PAD = { top: 12, right: 8, bottom: 22, left: 8 };
   let width = $state(320);
   let hover = $state<number | null>(null);
@@ -15,7 +15,7 @@
     return Math.ceil(max / p) * p;
   });
   const innerW = $derived(Math.max(10, width - PAD.left - PAD.right));
-  const innerH = H - PAD.top - PAD.bottom;
+  const innerH = $derived(H - PAD.top - PAD.bottom);
   const x = (i: number) => PAD.left + (data.length <= 1 ? innerW / 2 : (i / (data.length - 1)) * innerW);
   const y = (v: number) => PAD.top + innerH - (v / top) * innerH;
   const line = $derived(data.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.revenue).toFixed(1)}`).join(''));
@@ -122,7 +122,7 @@
   }
   .axis {
     fill: var(--muted);
-    font-size: 11px;
+    font-size: 12px;
     font-variant-numeric: tabular-nums;
   }
   .area {

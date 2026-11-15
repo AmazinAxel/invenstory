@@ -222,3 +222,12 @@ button:not(:disabled, .link):active {
   background: var(--accent);
   color: var(--accent-text);
 }
+
+
+/* Warm editorial theme; semantic success and error colors remain distinct. */
+:root { --bg:#f6eee5; --surface:#fff8ef; --text:#302923; --muted:#74675e; --line:#dfd1c5; --control-line:#8c7e73; --accent:#a84f43; --accent-text:#fff8ef; --radius:18px; color-scheme:light; }
+.card { box-shadow:0 4px 16px #56382409; }
+h1,h2 { font-family:Georgia,'Times New Roman',serif; }
+button:hover:not(:disabled),a.button:hover { filter:brightness(.97); }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:2px solid #91483f; outline-offset:3px; }
+:root { --danger:#b42318; --warn:#b54708; --ok:#067647; }

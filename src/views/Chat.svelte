@@ -341,4 +341,8 @@
     max-width: 960px;
     margin: 0 auto;
   }
+  .bubble { border-radius: 18px; box-shadow: 0 3px 12px #56382408; }
+  .bubble.user { background: #f0d8cd; color: #302923; }
+  .composer { border-radius: 18px; }
+  @media (min-width: 900px) { .chat { --dock: 16px; } .composer { left: 244px; right: 20px; } }
 </style>
