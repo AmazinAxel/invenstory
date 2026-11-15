@@ -1,11 +1,13 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import Icon from './Icon.svelte';
   let {
     running,
     onsend,
     onstop,
     placeholder = 'Message Invenstory',
-  }: { running: boolean; onsend: (text: string) => void; onstop: () => void; placeholder?: string } = $props();
+    extra,
+  }: { running: boolean; onsend: (text: string) => void; onstop: () => void; placeholder?: string; extra?: Snippet } = $props();
   let text = $state('');
   let el: HTMLTextAreaElement | undefined = $state();
 
@@ -31,6 +33,7 @@
 
 <form class="prompt" onsubmit={(e) => (e.preventDefault(), submit())}>
   <label class="sr">{placeholder}<textarea bind:this={el} bind:value={text} rows="1" {placeholder} oninput={grow} onkeydown={key}></textarea></label>
+  {@render extra?.()}
   {#if running}
     <button type="button" class="send" onclick={onstop} aria-label="Stop"><Icon name="x" /></button>
   {:else}

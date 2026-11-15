@@ -10,6 +10,7 @@ import { toolLabel, type ToolOutcome } from '../lib/agent/tools.ts';
 import type { Summary } from '../lib/n8n/api.ts';
 import { app } from './app.svelte.ts';
 import { dashboard } from './dashboard.svelte.ts';
+import { VOICE_HINT } from './chat-history.ts';
 
 export interface ToolView {
   id: string;
@@ -20,7 +21,21 @@ export interface ToolView {
   detail?: string;
 }
 
-function snapshot(s: Summary | null): string {
+/** Observers of a run (voice mode speaks it). Errors thrown by a listener never reach the chat. */
+export interface ChatListener {
+  onStart?(run: { voice: boolean }): void;
+  onText?(delta: string): void;
+  onToolStart?(label: string): void;
+  onEnd?(end: LoopEnd | 'error'): void;
+}
+
+export interface SendOptions {
+  /** Spoken turn: adds the hidden voice hint part to the user message. */
+  voice?: boolean;
+}
+
+/** Compact dashboard figures as a hidden text part (also used by voice mode's quick answers). */
+export function snapshot(s: Summary | null): string {
   if (!s) return '';
   const compact = {
     period: s.period,
@@ -46,6 +61,23 @@ class Chat {
   ended = $state<LoopEnd | null>(null);
   private controller: AbortController | null = null;
   private writes: Promise<unknown> = Promise.resolve();
+  private listeners = new Set<ChatListener>();
+
+  /** Subscribes to run events; returns the unsubscribe function. */
+  listen(l: ChatListener): () => void {
+    this.listeners.add(l);
+    return () => this.listeners.delete(l);
+  }
+
+  private emit<K extends keyof ChatListener>(k: K, ...args: Parameters<NonNullable<ChatListener[K]>>) {
+    for (const l of this.listeners) {
+      try {
+        (l[k] as ((...a: typeof args) => void) | undefined)?.(...args);
+      } catch (e) {
+        console.warn('chat listener failed', e);
+      }
+    }
+  }
 
   constructor() {
     dashboard.onData((s) => this.sync(s));
@@ -111,7 +143,7 @@ class Chat {
     });
   }
 
-  async send(text: string) {
+  async send(text: string, opts: SendOptions = {}) {
     const t = text.trim();
     if (!t || this.running || !app.llm || !app.install) return;
     this.running = true;
@@ -120,10 +152,19 @@ class Chat {
     this.ended = null;
     this.streaming = '';
     this.controller = new AbortController();
+    this.emit('onStart', { voice: !!opts.voice });
+    let failed = false;
     try {
       await this.ensureSession();
       const snap = snapshot(dashboard.data);
-      const user: Message = { role: 'user', parts: [...(snap ? [{ type: 'text' as const, text: snap }] : []), { type: 'text', text: t }] };
+      const user: Message = {
+        role: 'user',
+        parts: [
+          ...(snap ? [{ type: 'text' as const, text: snap }] : []),
+          ...(opts.voice ? [{ type: 'text' as const, text: VOICE_HINT }] : []),
+          { type: 'text', text: t },
+        ],
+      };
       // Repair any unanswered tool calls before the new message so it lands after their results.
       this.messages = repairHistory($state.snapshot(this.messages) as Message[]);
       this.messages.push(user);
@@ -137,8 +178,15 @@ class Chat {
         ctx: { mcp: app.mcp, install, sessionId: this.sessionId ?? undefined, onChange: () => (this.changed = Date.now()) },
         signal: this.controller.signal,
         events: {
-          onText: (d) => (this.streaming += d),
-          onToolStart: (id, name, input) => (this.tools[id] = { id, name, label: toolLabel(name, input), status: 'running' }),
+          onText: (d) => {
+            this.streaming += d;
+            this.emit('onText', d);
+          },
+          onToolStart: (id, name, input) => {
+            const label = toolLabel(name, input);
+            this.tools[id] = { id, name, label, status: 'running' };
+            this.emit('onToolStart', label);
+          },
           onToolDone: (id, o: ToolOutcome) => {
             const prev = this.tools[id];
             this.tools[id] = {
@@ -160,11 +208,15 @@ class Chat {
       });
     } catch (e) {
       if (this.controller?.signal.aborted) this.ended = 'aborted';
-      else this.error = e instanceof Error ? e.message : String(e);
+      else {
+        failed = true;
+        this.error = e instanceof Error ? e.message : String(e);
+      }
     } finally {
       this.running = false;
       this.streaming = '';
       this.controller = null;
+      this.emit('onEnd', failed ? 'error' : (this.ended ?? 'done'));
       await this.writes;
     }
   }

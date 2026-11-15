@@ -3,7 +3,7 @@
 Three layers: **unit tests** (offline, run in CI), **live checks against n8n** (terminal or app), and the **manual
 end-to-end script** (needs a person in the browser because the LLM key and OAuth login live there).
 
-## 1. Unit tests: `bun test test/` (63 tests, about 1 s, no network)
+## 1. Unit tests: `bun test test/` (101 tests, about 1 s, no network)
 
 | File | Covers |
 |---|---|
@@ -14,6 +14,7 @@ end-to-end script** (needs a person in the browser because the LLM key and OAuth
 | `test/mcp.test.ts` | MCP client 429 retry with Retry-After; non-JSON-RPC bodies become errors |
 | `test/mcp-proxy.test.ts` | proxy host matching, target parsing, header allowlists both ways, method/target refusals |
 | `test/sse.test.ts` | SSE parsing across chunk boundaries, CRLF, comments, trailing events |
+| `test/voice.test.ts` | voice mode's pure parts: streamed sentence chunking (decimals/currency, abbreviations, long unpunctuated text, lists, code and tables skipped), markdown → speech, stop commands, PCM decode with odd-byte carry, float → 16-bit, LE base64, resampling, ElevenLabs transcription messages and error types, socket URL, HTTP error mapping, default speech model, speaker queue (one request at a time, one sentence ahead, stop, errors) with a fake sink, progress throttle, quick-answer prompt, voice hint hidden |
 | `test/draft-md.test.ts` | mail/WhatsApp/SMS draft links, safe markdown (no HTML, safe links only), suggestion parsing |
 
 `bun run check` adds svelte-check (a11y + types) and tsc for node/test/scripts and the Pages function.
@@ -71,6 +72,9 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 7. Production: deploy to Cloudflare Pages (HTTPS), install the PWA on a phone, push with the app closed; confirm
    the CSP in `_headers` doesn't block anything.
 8. Gate refusal live: ask chat "email my supplier when stock is low" ⇒ red refused row, alternative offered.
+9. Voice mode end to end (section 6). Nothing of it has run against ElevenLabs with a real key or in a browser yet:
+   only the pure parts are unit-tested, and only unauthenticated error shapes were observed (401 JSON on REST,
+   `auth_error` message then close 1000 on the transcription socket).
 
 ## 5. Manual end-to-end script (person + browser)
 1. `bun run dev`, open `http://localhost:5173`. Log in to n8n, add the LLM key (test reply shows), Install.
@@ -89,3 +93,58 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 10. Automations → AI provider → Switch provider: enter a wrong key ⇒ red error and the old provider still shown; enter a
     Groq key (preset Groq) ⇒ "Saved", card shows "Groq · model"; next chat message uses it. Switch back to Claude.
 Report any red error text verbatim; most bugs so far were found exactly that way.
+
+## 6. Voice mode manual test (person + browser + ElevenLabs key)
+Needs a real ElevenLabs API key with text-to-speech and speech-to-text access. Desktop: `bun run dev` on
+`http://localhost:5173` (localhost counts as a secure context; the dev server does not apply `_headers`). Phone:
+a deployed HTTPS preview (`bunx wrangler@4 pages deploy dist …`), which also checks the production headers. Keep
+DevTools open (Console + Network/WS) and note anything red verbatim.
+
+**Setup**
+1. Without a key: Chat shows no mic button and no voice bar, and there is no Voice card anywhere (ordinary users are
+   never asked for an ElevenLabs key). Open the app once with `?voice` in the address (`http://localhost:5173/?voice`)
+   ⇒ a collapsed "Voice (optional)" card appears at the bottom of the Automations tab on this device (and under
+   Settings while guided setup is open), and stays after a reload.
+2. Automations → Voice → paste a wrong key → Connect ⇒ "ElevenLabs did not accept the voice key…". Nothing is saved.
+3. Paste the real key → Connect ⇒ voice and speech-model selects fill, Flash v2.5 preselected if offered, credits
+   "N of M used". Reload: still configured (IndexedDB `voice`). Check the key is not printed in the Console.
+4. Test voice ⇒ the sample sentence plays once, without clicks or gaps. Change the voice ⇒ Test voice uses it.
+
+**1. Push-to-talk**
+5. Chat ⇒ mic button left of Send; voice bar "Hold the mic to talk…". First press ⇒ browser asks for the
+   microphone; allow.
+6. Hold, say "How many products are low on stock?", release ⇒ partial text appears while speaking; on release the
+   user bubble shows exactly the transcript (no "[Voice mode…" text); the reply streams and is spoken, the first
+   sentence starting before the text finishes. Ask a question whose answer has a price ⇒ amounts read correctly.
+7. Reload ⇒ the spoken message replays normally; the hint stays hidden. In n8n `inv_messages`, that user row has
+   the voice hint part between the snapshot part and the transcript; a typed message has none.
+8. Tap (short press) the mic, speak, tap again ⇒ sent (click-to-start / click-to-stop). Keyboard: Tab to the mic,
+   Enter to start, Enter to send.
+9. While it speaks: tap Stop in the voice bar ⇒ silent at once, text keeps streaming, nothing more is spoken for
+   that reply. Repeat with a tap on the mic. Press the composer's ✕ during a spoken run ⇒ run and audio stop.
+10. Hold and release without speaking ⇒ nothing is sent. Start a hold then scroll the page (pointer cancel) ⇒
+    nothing is sent.
+
+**2. Hands-free**
+11. Voice bar → Hands-free ⇒ "Listening. Just talk." Ask a question and pause ⇒ sent by itself after about a second
+    of silence; reply spoken; the partial transcript stays empty while it speaks (it must never transcribe itself,
+    test on speakers, not headphones); about half a second after the audio ends, listening resumes.
+12. Tap the mic while it speaks or works ⇒ audio stops and the run stops (composer shows it stopped); listening
+    continues. Tap the mic while just listening ⇒ hands-free off.
+13. Leave hands-free on and silent for several minutes ⇒ it keeps working or reconnects by itself; if it gives up,
+    the voice bar says why in plain words. Switch to another tab/app ⇒ the mic indicator goes off.
+
+**3. Talk while it works**
+14. Ask by voice for something with several tool calls ("Set up a sync for my Google Sheet") ⇒ short progress lines
+    such as "Checking connected accounts." at most about every 6 s, never cutting a sentence off.
+15. During that run say "How much revenue did I make this week?" ⇒ a "Quick answer … not saved" block appears under
+    the chat and is spoken; after reload it is gone and n8n has no row for it.
+16. During a run say "stop" ⇒ the run stops and audio goes quiet; nothing is sent as a message.
+
+**Failures (typed chat must keep working in every case)**
+17. Block the microphone in site settings ⇒ "Microphone access is blocked…". Turn Wi-Fi off and press the mic ⇒
+    "Could not reach ElevenLabs…". Use a key without credits (or with speech-to-text disabled) ⇒ a plain message.
+18. Remove (Automations → Voice) ⇒ mic button and voice bar disappear.
+19. iPhone (installed PWA and Safari): repeat 5, 6, 9 and 11. Watch for: no sound until the first tap, quiet
+    earpiece playback while hands-free keeps the mic open, the ring/silent switch muting WebAudio.
+

@@ -14,14 +14,15 @@
  │  ├ dashboard ─────────────────┼── HTTPS GET/POST ─────▶│ /webhook/inv-<secret>  invenstory-api  │
  │  └ service worker ◀── push ───┼── FCM/APNs ◀── VAPID ──│ invenstory-notify (Code node signs)    │
  │                               │                        │ invenstory-analyze (n8n LLM credential)│
- │  IndexedDB: tokens, LLM key   │                        │ data tables inv_* (the only store)     │
+ │  IndexedDB: tokens, LLM key,  │                        │ data tables inv_* (the only store)     │
+ │   voice key (optional)        │                        │                                        │
  └──────────────┬───────────────┘                        └──────────────────────────────────────┘
-                │ HTTPS (streaming, tool calls)
-                ▼
+                │ HTTPS (streaming, tool calls)          optional voice: HTTPS + WSS
+                ▼                                         ──▶ ElevenLabs (speech-to-text, text-to-speech)
         LLM provider (Claude API or OpenAI-compatible)
 ```
 
-Three channels from the browser:
+Three channels from the browser (plus optional voice):
 1. **Control plane**: MCP over streamable HTTP with OAuth, through the same-origin `/mcp` proxy
    (n8n Cloud sends no CORS headers on `/mcp-server/http`; found in Phase 0). Used for install, building workflows,
    credentials and node catalogue, executions, and append-only rows (chat messages, sessions, push subscriptions,
@@ -30,6 +31,7 @@ Three channels from the browser:
    dashboard reads, plus synchronous mutations and action runs.
 3. **LLM**: the chat agent loop runs in the browser and calls the provider directly (CORS verified for Anthropic,
    OpenAI, Gemini's OpenAI endpoint, OpenRouter, xAI, Groq).
+4. **Voice** (optional, only with a voice key on the device): ElevenLabs REST + realtime WebSocket, see Voice below.
 
 Analysis does **not** use the app's LLM key: it runs inside n8n on an LLM credential the user creates in n8n.
 
@@ -141,6 +143,31 @@ redacted thinking / fallback blocks kept verbatim, replayed only to Claude).
 - `repairHistory` gives any unanswered tool call a fixed "interrupted" result (reload mid-run, lost save).
 - Analysis sessions start with a synthetic user turn (APIs require a user message first).
 
+## Voice (`src/lib/voice/`, `src/state/voice.svelte.ts`)
+Optional and per device: invisible unless an ElevenLabs key is saved in the Voice card at the bottom of the Automations tab (`K.voice` =
+`{ provider, apiKey, voiceId, voiceName, ttsModel, sttModel }`). The Voice card itself only shows on a device that
+opened the app once with `?voice` (flag in `localStorage`), so ordinary users are never asked for a key.
+A wrapper around the chat agent, nothing more:
+- **In:** mic (`getUserMedia`, echo cancellation, noise suppression, auto gain, mono) → AudioWorklet
+  `public/voice-capture.js` (same-origin for the CSP) → 16 kHz 16-bit PCM in ~100 ms chunks (resampled if the
+  context runs at another rate) → `wss://api.elevenlabs.io/v1/speech-to-text/realtime` opened with a fresh
+  single-use token (`POST /v1/single-use-token/realtime_scribe`). Push-to-talk: one session per press,
+  `commit_strategy=manual`, commit on release. Hands-free: one session, `commit_strategy=vad`, half-duplex (silence
+  is sent while the reply plays; listening resumes ~0.45 s after), reconnects up to 3 times after time limits/drops.
+- **Turn:** the final transcript goes through `chat.send(text, { voice: true })`, which adds the hidden `VOICE_HINT`
+  text part (after the snapshot part; `isHiddenText` hides both in the UI). Stored and replayed like any message.
+- **Out:** `Chat.listen()` events (start, text delta, tool start, end) → `SentenceChunker` (incremental, skips code
+  and tables, markdown stripped by `toSpeech`) → `Speaker` (one `POST /v1/text-to-speech/{voice}/stream?
+  output_format=pcm_24000` at a time, at most one sentence downloaded ahead, `AbortController` on stop) →
+  `WebAudioSink` (one `AudioContext`, gapless scheduling, created in the user's tap). No `<audio>`/`blob:`, so no
+  `media-src` in the CSP.
+- **While it works:** tool starts become spoken progress lines (`ProgressThrottle`: newest label, ≥ 6 s apart, never
+  over speech or the user's own words). Speech during a run: "stop"/"cancel" → `chat.stop()` + silence; anything
+  else → one tool-less `createLlm(app.llm).turn()` with `QUICK_SYSTEM`, the snapshot and the tool status, spoken and
+  shown as an ephemeral "quick answer" (not persisted, not in `chat.messages`).
+- **Seam:** engines implement `SttEngine` / `TtsEngine` (`types.ts`); `createEngines()` in `index.ts` picks them.
+  Only ElevenLabs exists. Voice errors show in the voice bar and never touch `chat.error`.
+
 ## Dashboard and push
 - Refresh only on events: open, focus (≥15 s apart), push (service-worker message), own action completing.
 - Action items: `run` → `POST item.run`; `draft` → open `mailto:` / `https://wa.me/` / `sms:` link with prefilled text
@@ -151,16 +178,17 @@ redacted thinking / fallback blocks kept verbatim, replayed only to Claude).
 ## File map
 ```
 functions/mcp.ts            Pages Function → src/server/mcp-proxy.ts
-public/                     manifest, sw.js, icon.svg, _headers (CSP)
+public/                     manifest, sw.js, icon.svg, _headers (CSP), voice-capture.js (AudioWorklet)
 scripts/n8n.ts              terminal MCP access (token)
 src/lib/kv.ts               IndexedDB store (shared with sw.js)
 src/lib/n8n/                oauth, mcp, install, api, gate, policy, core/{schema,code,sdk,templates,analyze}
 src/lib/llm/                types, anthropic, openai, index (createLlm, testLlm)
 src/lib/agent/              tools, prompt, loop
+src/lib/voice/              types (engine seam), elevenlabs, capture, player, speaker, text, pcm, progress, quick
 src/lib/{sse,draft,md,format,push,suggest}.ts
-src/state/                  app, dashboard, chat (+ chat-history)
+src/state/                  app, dashboard, chat (+ chat-history), voice
 src/views/                  Onboarding, InstallStep, Shell, Dashboard, Chat, Automations
-src/ui/                     Kpi, Trend, TopSellers, StockList, ActionItem, Activity, Md, MdInline, Prompt, TabBar, Settings, Icon
+src/ui/                     Kpi, Trend, TopSellers, StockList, ActionItem, Activity, Md, MdInline, Prompt, TabBar, Settings, VoiceSettings, MicButton, VoiceBar, Icon
 test/                       bun tests
 docs/                       this folder
 ```

@@ -4,11 +4,23 @@ import { toolCalls, type Message, type Part } from '../lib/llm/types.ts';
 import type { StoredMessage } from '../lib/n8n/api.ts';
 
 export const SNAPSHOT_MARK = '[Dashboard snapshot';
+export const VOICE_MARK = '[Voice mode';
+/**
+ * Hidden text part on spoken user messages, so the model answers for the ear. Typed messages carry
+ * none. Stored like any other part and replayed unchanged (never edit this text in place for old
+ * sessions: history replays byte-identically; a new wording only affects new messages).
+ */
+export const VOICE_HINT = `${VOICE_MARK}; the owner is speaking and will hear this reply read aloud. Answer in one to three short spoken sentences, plain words, no markdown, lists or tables.]`;
+
+/** Context parts the app adds to user messages (dashboard snapshot, voice hint): not shown in the chat. */
+export function isHiddenText(text: string): boolean {
+  return text.startsWith(SNAPSHOT_MARK) || text.startsWith(VOICE_MARK);
+}
 
 /** Text the owner may see: text parts minus the dashboard snapshot the app attaches for the model. */
 export function visibleText(m: Message): string {
   return m.parts
-    .filter((p) => p.type === 'text' && !p.text.startsWith(SNAPSHOT_MARK))
+    .filter((p) => p.type === 'text' && !isHiddenText(p.text))
     .map((p) => (p.type === 'text' ? p.text : ''))
     .join('\n\n');
 }

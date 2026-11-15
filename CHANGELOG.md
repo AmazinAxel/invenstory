@@ -1,6 +1,19 @@
 # Changelog
 
 ## Unreleased
+- Voice mode (optional, per device): talk to the chat and hear the answer. Open the app once with `?voice` to
+  reveal the Voice card on that device (ordinary users are never asked for an ElevenLabs key), then paste the key in
+  the Voice card at the bottom of the Automations tab (checked against the account, voices and speech models loaded,
+  Test voice, credits shown); a mic button then appears in the chat composer. Hold to talk and release to send (or
+  tap to start, tap to send), with a live transcript; the reply is spoken sentence by sentence while it streams, with
+  a Stop control. Hands-free lets ElevenLabs detect the end of a turn and does not listen while the reply plays.
+  During long runs it says short progress lines from the tool labels (at most one about every 6 s), "stop"/"cancel"
+  ends the run, and other questions get a quick spoken answer that is shown once and not saved. Spoken messages carry
+  a hidden voice hint so the model answers in a few plain sentences; the `Options:` line of a reply is shown as chips
+  but never read aloud. Why: owners on the shop floor want to ask without typing; wrapping the existing agent keeps
+  the gate, tools and history unchanged (see the voice ADR in docs/adr/). Production headers: `Permissions-Policy`
+  now allows the microphone for the app (`microphone=(self)`) and the CSP `connect-src` adds
+  `wss://api.elevenlabs.io` (`https:` does not cover WebSockets). Without a voice key nothing changes.
 - Chat has a "New chat" button: it clears the conversation and the next message starts a separate session, so the model
   no longer sees the old messages (#21, D21). Why: the only way to change topic was to keep chatting in one growing
   history. Earlier chats stay in n8n but the app shows only the newest session, so they cannot be reopened. Reloading
