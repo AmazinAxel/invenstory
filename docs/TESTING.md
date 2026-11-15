@@ -9,7 +9,7 @@ end-to-end script** (needs a person in the browser because the LLM key and OAuth
 |---|---|
 | `test/gate.test.ts` | every node class of the safety gate, Code-network patterns, HTTP methods, sub-workflow recursion/cycles/missing targets, disabled nodes, refusal message |
 | `test/agent.test.ts` | tool wrapper (prefix, error-workflow wiring, gate on create/publish, core/foreign workflows refused, action registration rules, input validation), agent loop (tool round trip, persistence order, invalid JSON, refusal stops tools), stored-history conversion, `repairHistory` |
-| `test/llm.test.ts` | Claude conversion (native blocks replayed in order, tool parts, fallback boundary rule), Claude streaming turn with headers/body (API version, browser header, betas, fallbacks, drop_block, effort, eager streaming, no temperature), OpenAI conversion and streamed tool-call accumulation, tool-input parsing |
+| `test/llm.test.ts` | provider config builder (trim, preset label, key rules), Claude conversion (native blocks replayed in order, tool parts, fallback boundary rule), Claude streaming turn with headers/body (API version, browser header, betas, fallbacks, drop_block, effort, eager streaming, no temperature), OpenAI conversion and streamed tool-call accumulation, tool-input parsing |
 | `test/core.test.ts` | the exact Code-node JavaScript n8n runs: SUMMARY (KPIs, currency exclusion, newest config, trend, top/slow, items, messages, placeholder rows), STOCK paging/search, NOTICE, PREPARE_RUN (only open registered run items), ANALYSIS_TARGET; VAPID signing verified with WebCrypto; endpoint dedupe; VAPID key recovery for upgrades; SDK serializer and api template contents |
 | `test/mcp.test.ts` | MCP client 429 retry with Retry-After; non-JSON-RPC bodies become errors |
 | `test/mcp-proxy.test.ts` | proxy host matching, target parsing, header allowlists both ways, method/target refusals |
@@ -86,4 +86,6 @@ Keep live calls few: n8n Cloud rate-limits MCP (429). Never poll in a loop.
 9. On a phone, send a long prompt and watch the reply stream without touching the screen: it must keep following and
    "Jump to latest" must NOT appear. Then scroll up mid-stream: following stops and the button appears; tap it to resume.
    (Real frames matter: a hidden browser pane fires no scroll events, so check on a phone or the iOS Simulator.)
+10. Automations → AI provider → Switch provider: enter a wrong key ⇒ red error and the old provider still shown; enter a
+    Groq key (preset Groq) ⇒ "Saved", card shows "Groq · model"; next chat message uses it. Switch back to Claude.
 Report any red error text verbatim; most bugs so far were found exactly that way.

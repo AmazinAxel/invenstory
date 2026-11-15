@@ -5,6 +5,11 @@
   no longer sees the old messages (#21, D21). Why: the only way to change topic was to keep chatting in one growing
   history. Earlier chats stay in n8n but the app shows only the newest session, so they cannot be reopened. Reloading
   before sending shows the previous chat again.
+- The Automations tab has an "AI provider" card again: it shows the current provider and model and lets the owner switch
+  to Claude or any OpenAI-compatible provider (OpenAI, Gemini, OpenRouter, Grok, Groq, Ollama, custom URL) with an API
+  key. The connection is tested before saving and the old provider is kept if it fails (#20, D20). Why: without it a
+  wrong or expired key could only be fixed by clearing site data; Groq has no OAuth login, so a key form is the route.
+  The onboarding key form and this card are one shared component.
 - The Notifications and Settings card is gone from the Automations tab, so "Change language model" and "Disconnect
   n8n" are no longer reachable once setup is done (the Setup view still has them while setup is open). Why: the owner decided
   these controls don't belong in daily use; notifications are now asked for once on the Dashboard (#13) and changed
