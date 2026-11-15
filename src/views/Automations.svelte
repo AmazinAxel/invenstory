@@ -5,9 +5,8 @@
   import { analysisChoices, listCredentials, readRows, setupAnalysis, type CredentialInfo } from '../lib/n8n/install.ts';
   import type { ModelChoice } from '../lib/n8n/core/analyze.ts';
   import { NAME_PREFIX } from '../lib/agent/tools.ts';
-  import { humanType, suggestIdeas } from '../lib/suggest.ts';
+  import { humanType } from '../lib/suggest.ts';
   import { ago } from '../lib/format.ts';
-  import Prompt from '../ui/Prompt.svelte';
   import Icon from '../ui/Icon.svelte';
   import Settings from '../ui/Settings.svelte';
 
@@ -116,31 +115,6 @@
     }
   }
 
-  // ----- suggestion chips: one LLM call whenever the credential set changes -----
-  let ideas = $state<string[]>([]);
-  $effect(() => {
-    const types = [...new Set(creds.map((c) => c.type))].sort();
-    if (!opened || !app.llm || loading) return;
-    const key = `invenstory.ideas.${types.join(',')}`;
-    try {
-      const cached = localStorage.getItem(key);
-      if (cached) return void (ideas = JSON.parse(cached) as string[]);
-    } catch {
-      /* storage unavailable */
-    }
-    const cfg = $state.snapshot(app.llm);
-    void suggestIdeas(cfg, types)
-      .then((list) => {
-        ideas = list;
-        try {
-          localStorage.setItem(key, JSON.stringify(list));
-        } catch {
-          /* ignore */
-        }
-      })
-      .catch(() => (ideas = []));
-  });
-
   function ask(text: string) {
     onchat();
     void chat.send(text);
@@ -150,14 +124,6 @@
 <div class="stack">
   <h1>Automations</h1>
   {#if loadError}<p class="error small" role="alert">{loadError}</p>{/if}
-
-  <section class="card" aria-labelledby="h-new">
-    <h2 id="h-new">Describe an automation</h2>
-    <Prompt running={chat.running} onsend={ask} onstop={() => chat.stop()} placeholder="e.g. Sync my Shopify stock every hour" />
-    {#if ideas.length}
-      <div class="chips">{#each ideas as idea (idea)}<button class="chip" onclick={() => ask(idea)}>{idea}</button>{/each}</div>
-    {/if}
-  </section>
 
   <section class="card" aria-labelledby="h-analysis">
     <h2 id="h-analysis">Analysis</h2>
@@ -200,7 +166,7 @@
         {/each}
       </ul>
     {:else}
-      <p class="muted small">{loading ? 'Loading…' : 'None yet. Describe one above.'}</p>
+      <p class="muted small">{loading ? 'Loading…' : 'None yet. Ask in Chat to create one.'}</p>
     {/if}
     {#if actions.length}
       <h3>One-tap actions</h3>
@@ -251,17 +217,6 @@
 </div>
 
 <style>
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .chip {
-    border-radius: 999px;
-    min-height: 40px;
-    font-size: 0.9rem;
-    text-align: left;
-  }
   .list {
     list-style: none;
     margin: 0;
