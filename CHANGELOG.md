@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Automation ideas moved from the Automations tab to the empty Chat: the "Describe an automation" card is gone and
+  the AI-suggested ideas show beside the starter chips. Why: it was a second, duplicate chat prompt; Chat is where
+  automations are created, so ideas belong there. Ideas load when the empty chat is first seen (not at app start).
 - Accessibility polish (UI audit P2s): buttons show hover and press feedback; placeholders use the muted color
   (4.1:1 ⇒ 5:1+ in dark mode); every error message is announced (`role="alert"`, success notes `role="status"`); the
   tab badge is read as "N new"; the connector search has a label; text links and the open-in-n8n icon get ~44px tap
