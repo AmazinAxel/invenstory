@@ -200,7 +200,16 @@ function run(input) {
   var registry = real(input.registry).map(function (a) {
     return { workflow_id: a.workflow_id, name: a.name, description: a.description, input_schema: parseJson(a.input_schema || '{}', {}) };
   });
+  var bySku = {};
+  real(input.products).forEach(function (p) { bySku[p.sku] = p; });
+  var performance = s.product_sales.slice(0, 20).map(function (x) {
+    var p = bySku[x.sku] || {};
+    var price = num(p.unit_price), cost = num(p.unit_cost);
+    return { sku: x.sku, name: x.name, revenue: x.revenue, prev_revenue: x.prev_revenue, units: x.units, prev_units: x.prev_units,
+      quantity: num(p.quantity), margin_pct: price > 0 && cost > 0 ? round((price - cost) / price * 100) : null };
+  });
   var facts = { currency: s.currency, period: s.period, kpis: s.kpis, top_sellers: s.top_sellers, slow_movers: s.slow_movers,
+    product_performance: performance,
     low_or_out_of_stock: low, open_action_items: s.action_items.map(function (i) { return { title: i.title, kind: i.kind }; }),
     weekly_revenue: s.sales_trend.reduce(function (acc, d, i) { var w = Math.floor(i / 7); acc[w] = round((acc[w] || 0) + d.revenue); return acc; }, []) };
   return { facts: JSON.stringify(facts), registry: registry, registry_json: JSON.stringify(registry) };
@@ -282,9 +291,13 @@ function run(input) {
     return base;
   }).filter(Boolean);
   var insight = String(out.insight || 'No insight was produced.').slice(0, 8000);
+  var invest = (Array.isArray(out.invest) ? out.invest : []).slice(0, 5).map(function (p) {
+    var name = String((p && (p.name || p.sku)) || '').slice(0, 120).trim();
+    return name ? { sku: String(p.sku || '').slice(0, 120), name: name, reason: String(p.reason || '').slice(0, 300) } : null;
+  }).filter(Boolean);
   return {
     session: { session_id: sessionId, created_at: now, origin: 'analysis', execution_id: String(input.execution_id || '') },
-    message: { session_id: sessionId, created_at: now, role: 'assistant', content: JSON.stringify({ type: 'insight', text: insight, item_ids: items.map(function (x) { return x.item_id; }) }) },
+    message: { session_id: sessionId, created_at: now, role: 'assistant', content: JSON.stringify({ type: 'insight', text: insight, item_ids: items.map(function (x) { return x.item_id; }), invest: invest }) },
     items: items,
     notice: { kind: 'action_items', title: items.length === 1 ? '1 new action item' : items.length + ' new action items', body: items.map(function (x) { return x.title; }).join(' · ').slice(0, 200) },
   };
