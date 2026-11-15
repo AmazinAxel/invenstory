@@ -3,7 +3,8 @@ import { generateVapid, install, type McpLike } from '../src/lib/n8n/install.ts'
 import { signPushCode } from '../src/lib/n8n/core/code.ts';
 import { BUILD_SUMMARY_CODE, SUMMARY_SALES_SINCE } from '../src/lib/n8n/core/templates.ts';
 import { dtGet, ex } from '../src/lib/n8n/core/sdk.ts';
-import { CORE_VERSION, TABLE_NAMES, WORKFLOWS } from '../src/lib/n8n/core/schema.ts';
+import { CORE_VERSION, TABLE_NAMES, WORKFLOWS, type TableIds } from '../src/lib/n8n/core/schema.ts';
+import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, BUILD_RECORDS_CODE, MODEL_CHOICES, PREPARE_FACTS_CODE, analyzeWorkflow } from '../src/lib/n8n/core/analyze.ts';
 
 type Call = { name: string; args: Record<string, unknown> };
 
@@ -42,12 +43,39 @@ const run = (mcp: McpLike) => install(mcp, { base: 'https://n8n.test', origin: '
 const updates = (calls: Call[]) => calls.filter((c) => c.name === 'update_workflow').map((c) => c.args);
 
 describe('upgradeCore', () => {
+  test('v3 → v4 patches the analysis nodes of invenstory-analyze in place', async () => {
+    const { mcp, calls } = await fakeN8n('3');
+    await run(mcp);
+    expect(updates(calls)).toEqual([
+      {
+        workflowId: 'w-analyze',
+        operations: [
+          { type: 'setNodeParameter', nodeName: 'Prepare Facts', path: '/jsCode', value: PREPARE_FACTS_CODE },
+          { type: 'setNodeParameter', nodeName: 'Insight Format', path: '/inputSchema', value: JSON.stringify(ANALYSIS_SCHEMA) },
+          { type: 'setNodeParameter', nodeName: 'Analyst', path: '/messages/messageValues/0/message', value: ANALYSIS_SYSTEM },
+          { type: 'setNodeParameter', nodeName: 'Build Records', path: '/jsCode', value: BUILD_RECORDS_CODE },
+        ],
+      },
+    ]);
+    expect(calls.some((c) => c.name === 'publish_workflow' && c.args.workflowId === 'w-analyze')).toBe(true);
+  });
+
+  test('the patched parameter paths exist on the analysis nodes', () => {
+    const t = Object.fromEntries(TABLE_NAMES.map((n) => [n, `t-${n}`])) as TableIds;
+    const choice = MODEL_CHOICES[0]!;
+    const code = analyzeWorkflow({ tables: t, notifyId: 'n', choice, credential: { id: 'c', name: 'c' }, model: '' });
+    expect(code).toContain(JSON.stringify(PREPARE_FACTS_CODE));
+    expect(code).toContain(JSON.stringify(BUILD_RECORDS_CODE));
+    expect(code).toContain(JSON.stringify(JSON.stringify(ANALYSIS_SCHEMA)));
+    expect(code).toContain(JSON.stringify(ANALYSIS_SYSTEM));
+  });
+
   test('v2 → v3 patches the summary nodes of invenstory-api in place and records the version', async () => {
     const { mcp, calls } = await fakeN8n('2');
     const info = await run(mcp);
     expect(info.version).toBe(CORE_VERSION);
     expect(info.apiUrl).toBe('https://n8n.test/webhook/inv-test');
-    expect(updates(calls)).toEqual([
+    expect(updates(calls).filter((u) => u.workflowId === 'w-api')).toEqual([
       {
         workflowId: 'w-api',
         operations: [
@@ -65,7 +93,7 @@ describe('upgradeCore', () => {
   test('v1 also re-signs the notify workflow with its existing keys', async () => {
     const { mcp, calls } = await fakeN8n('1');
     await run(mcp);
-    expect(updates(calls).map((u) => u.workflowId)).toEqual(['w-notify', 'w-api']);
+    expect(updates(calls).map((u) => u.workflowId)).toEqual(['w-notify', 'w-api', 'w-analyze']);
   });
 
   test('a current install changes nothing', async () => {

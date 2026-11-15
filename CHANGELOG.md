@@ -14,6 +14,12 @@
   the gate, tools and history unchanged (see the voice ADR in docs/adr/). Production headers: `Permissions-Policy`
   now allows the microphone for the app (`microphone=(self)`) and the CSP `connect-src` adds
   `wss://api.elevenlabs.io` (`https:` does not cover WebSockets). Without a voice key nothing changes.
+- Analysis now ranks up to five products worth investing more in, each with a one-line reason, and the Dashboard
+  shows them at the top ("Invest more in", hidden until an analysis has produced picks). The model gets per-product
+  revenue for this and the previous period, units, stock and margin. Core v4: setup patches the `Prepare Facts`,
+  `Insight Format`, `Analyst` and `Build Records` nodes of `invenstory-analyze` in place. Why: the owner asked which
+  products to invest in. Suppliers are not ranked yet: the store has no supplier data, and n8n MCP cannot add a
+  column to an existing table.
 - The Revenue Heatmap shows products instead of categories and now has real data: one tile per product (top 50),
   area = revenue this period, color = change against the period before. Core v3: the summary reads two periods of
   sales and returns `product_sales`; installs below v3 rerun setup on load, which updates the `Summary Sales` filter

@@ -37,3 +37,5 @@ provider, production deploy, live gate refusal, last two fixes) still need a liv
 - Ask the team lead for an n8n user on the instance, then create your own MCP access token for `scripts/n8n.ts`.
 - When something breaks in the app, the red error text is the best bug report; three real bugs were found that way
   (CHANGELOG incident log).
+- Deleting chats (with a yes/no confirmation) is wanted but not built; "New chat" only resets the screen. What it
+  needs is written up in [notes/clear-chat-history.md](notes/clear-chat-history.md).
