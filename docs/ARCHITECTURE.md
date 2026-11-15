@@ -135,6 +135,7 @@ redacted thinking / fallback blocks kept verbatim, replayed only to Claude).
 ## Chat persistence (`src/state/chat.svelte.ts`, `chat-history.ts`)
 - Sessions/messages are appended to n8n via MCP (`add_data_table_rows`); content `{"type":"parts","parts":[…]}`.
   The UI shows only the newest session (from `view=summary`); each analysis run creates a new session.
+  "New chat" resets the screen client-side; `shouldAdopt` keeps the older summary session hidden until a newer one exists (D21).
 - History is replayed byte-identically (stored content == live content). Each user message carries a dashboard
   snapshot part (hidden in the UI) so answers can quote figures.
 - `repairHistory` gives any unanswered tool call a fixed "interrupted" result (reload mid-run, lost save).
