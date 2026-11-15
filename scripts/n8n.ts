@@ -5,6 +5,7 @@
 // Setup: in n8n, Settings → Instance-level MCP → create an access token. Then:
 //   export N8N_BASE=https://<name>.app.n8n.cloud
 //   export N8N_MCP_TOKEN=<token>          # never commit it
+// (or copy scripts/n8n.env.example to .env.local)
 //
 // Commands:
 //   bun scripts/n8n.ts tools                         list MCP tools

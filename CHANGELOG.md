@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+- Moved `.env.example` to `scripts/n8n.env.example`. Cloudflare's Git deploy wizard read the root file and asked the
+  deployer for `N8N_BASE`/`N8N_MCP_TOKEN`, implying one shared n8n account. The app never used them: every user logs
+  in to their own n8n in the browser and brings their own LLM key. Only `scripts/n8n.ts` reads them.
+
 ## 1.0.0-rc.1 (2026-11-15)
 First release candidate. Implements docs/PLAN.md phases 0–7.
 

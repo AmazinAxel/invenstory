@@ -4,3 +4,4 @@ dist/
 spike/
 .env
 .env.local
+merch-test-site/
