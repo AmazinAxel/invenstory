@@ -6,6 +6,9 @@
   API-key form moved behind "Use an API key instead". The n8n field accepts a bare Cloud name (`acme` ⇒
   `acme.app.n8n.cloud`) or any pasted editor link. Why: users had to find an instance URL and create an API key
   before seeing anything; now it is a name plus two logins. CSP `connect-src` allows `http://localhost:*` for Ollama.
+- Install no longer asks for a base currency; it is inferred from the browser locale (first language tag with a
+  region, USD fallback). Why: one less onboarding question, and the guess was already prefilled and rarely changed.
+  An existing install keeps its stored `base_currency`.
 - Incident: login to an n8n Cloud instance failed with "No MCP server found". Cause: MCP access was off in n8n
   settings (`/mcp-server/http` answers 404 `MCP access is disabled`). The error now says so and where to turn it on.
 - Moved `.env.example` to `scripts/n8n.env.example`. Cloudflare's Git deploy wizard read the root file and asked the
