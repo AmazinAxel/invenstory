@@ -26,3 +26,4 @@ the same title as a line below. `test/adr.test.ts` fails the release if the inde
 - [D17. Login-first LLM onboarding (OpenRouter OAuth, local Ollama)](adr/0017-login-first-llm-onboarding.md)
 - [D18. Dashboard locked behind guided setup](adr/0018-dashboard-locked-behind-setup.md)
 - [D19. Confirmation chips via a text convention](adr/0019-confirmation-chips-text-convention.md)
+- [D21. "New chat" is a client-side reset](adr/0021-new-chat-client-side-reset.md)

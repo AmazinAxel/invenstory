@@ -67,9 +67,11 @@
   const announce = $derived.by(() => {
     if (chat.running) return 'Working…';
     const last = turns.at(-1);
-    return last && 'text' in last ? splitOptions(last.text).body : '';
+    if (!last) return cleared ? 'New chat started' : '';
+    return 'text' in last ? splitOptions(last.text).body : '';
   });
 
+  let cleared = $state(false);
   let end: HTMLDivElement | undefined = $state();
   let composerH = $state(0);
 
@@ -128,6 +130,9 @@
   <header class="row between" hidden={embedded}>
     <h1>Chat</h1>
     {#if chat.origin === 'analysis' && rows.length}<span class="muted small">Latest analysis</span>{/if}
+    <button class="chip" disabled={chat.running || !chat.messages.length} onclick={() => { chat.newChat(); cleared = true; }}>
+      <Icon name="plus" size={16} /> New chat
+    </button>
   </header>
 
   <p class="sr-only" aria-live="polite">{announce}</p>
