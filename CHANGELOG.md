@@ -102,4 +102,7 @@ Kept so future work doesn't reintroduce them.
    handled it correctly; keep examples in user-facing text concrete.
 8. **Chat autoscroll "didn't fire"** (issue #2). Cause found by inspection, not live repro: `scrollIntoView` aligned the
    end sentinel to the viewport bottom, which sits under the fixed composer and tab bar, so the newest message was hidden.
-   Fix: `scroll-margin-bottom` on the sentinel = tab bar + measured composer height. Live check still wanted.
+   Fix: `scroll-margin-bottom` on the sentinel = tab bar + measured composer height. Verified in a browser against the
+   real Chat component (mobile 375px and desktop 1100px, composer grown to 6 lines): history loads, streaming follows,
+   scroll-up stops following and shows "Jump to latest", sending jumps down; newest message ends 12-13px above the
+   composer. Note for future checks: a hidden browser pane fires no scroll events (no frames), so dispatch them by hand.
