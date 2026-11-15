@@ -64,6 +64,7 @@
   });
 
   let end: HTMLDivElement | undefined = $state();
+  let composerH = $state(0);
   $effect(() => {
     void rows.length;
     void chat.streaming;
@@ -71,7 +72,7 @@
   });
 </script>
 
-<div class="chat" class:embedded>
+<div class="chat" class:embedded style:--composer-h="{composerH}px">
   <header class="row between" hidden={embedded}>
     <h1>Chat</h1>
     {#if chat.origin === 'analysis' && rows.length}<span class="muted small">Latest analysis</span>{/if}
@@ -145,10 +146,10 @@
     {#if chat.ended === 'step_limit'}<p class="muted small" role="status">Paused after many steps. Say “continue” to keep going.</p>{/if}
     {#if chat.ended === 'max_tokens'}<p class="muted small" role="status">The reply was cut off. Say “continue”.</p>{/if}
     {#if chat.error}<p class="error small" role="alert">{chat.error}</p>{/if}
-    <div bind:this={end}></div>
+    <div class="end" bind:this={end}></div>
   </div>
 
-  <div class="composer">
+  <div class="composer" bind:offsetHeight={composerH}>
     <Prompt running={chat.running} onsend={(t) => chat.send(t)} onstop={() => chat.stop()} />
   </div>
 </div>
@@ -254,17 +255,24 @@
       animation: none;
     }
   }
+  .chat {
+    --dock: calc(56px + env(safe-area-inset-bottom)); /* tab bar */
+  }
+  .chat.embedded {
+    --dock: env(safe-area-inset-bottom);
+  }
+  /* Scrolling the sentinel to the viewport bottom must stop above the fixed composer, or the newest message hides under it. */
+  .end {
+    scroll-margin-bottom: calc(var(--dock) + var(--composer-h, 0px) + 12px);
+  }
   .composer {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(56px + env(safe-area-inset-bottom));
+    bottom: var(--dock);
     padding: 8px 16px;
     background: linear-gradient(to top, var(--bg) 70%, transparent);
     max-width: 960px;
     margin: 0 auto;
-  }
-  .embedded .composer {
-    bottom: env(safe-area-inset-bottom);
   }
 </style>
