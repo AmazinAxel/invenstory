@@ -13,5 +13,6 @@ export const icons = {
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6',
   search: 'M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM20 20l-4.5-4.5',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  down: 'M6 9l6 6 6-6',
 } as const;
 export type IconName = keyof typeof icons;

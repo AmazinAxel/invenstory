@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
+  import { nearBottom } from '../lib/scroll.ts';
   import { chat, SNAPSHOT_MARK } from '../state/chat.svelte.ts';
   import { toolLabel } from '../lib/agent/tools.ts';
   import { toolCalls, type Message, type Part } from '../lib/llm/types.ts';
@@ -65,12 +66,46 @@
 
   let end: HTMLDivElement | undefined = $state();
   let composerH = $state(0);
+  // Follow new content only while the owner is at the bottom; if they scrolled up to read, leave them and offer a jump.
+  // `pinned` changes only on scroll events, never on content growth, so a long chunk can't unpin a following view.
+  let pinned = $state(true);
+  let unseen = $state(false);
+  let prevLen = 0;
+  let wasActive = false;
+
+  function atBottom(): boolean {
+    if (!end) return true;
+    const inset = parseFloat(getComputedStyle(end).scrollMarginBottom) || 0;
+    return nearBottom(scrollY, innerHeight - inset, scrollY + end.getBoundingClientRect().bottom);
+  }
+  function toBottom() {
+    end?.scrollIntoView({ block: 'end' });
+    pinned = true;
+    unseen = false;
+  }
+  function onscroll() {
+    if (!active) return;
+    pinned = atBottom();
+    if (pinned) unseen = false;
+  }
+
   $effect(() => {
-    void rows.length;
+    const n = rows.length;
     void chat.streaming;
-    if (active) void tick().then(() => end?.scrollIntoView({ block: 'end' }));
+    const grew = n > prevLen;
+    prevLen = n;
+    const opened = active && !wasActive;
+    wasActive = active;
+    if (!active) return;
+    const sent = grew && rows[n - 1]?.role === 'user';
+    untrack(() => {
+      if (opened || sent || pinned) void tick().then(toBottom);
+      else unseen = true;
+    });
   });
 </script>
+
+<svelte:window {onscroll} />
 
 <div class="chat" class:embedded style:--composer-h="{composerH}px">
   <header class="row between" hidden={embedded}>
@@ -150,6 +185,7 @@
   </div>
 
   <div class="composer" bind:offsetHeight={composerH}>
+    {#if !pinned && unseen}<button class="chip jump" onclick={toBottom}><Icon name="down" size={16} /> Jump to latest</button>{/if}
     <Prompt running={chat.running} onsend={(t) => chat.send(t)} onstop={() => chat.stop()} />
   </div>
 </div>
@@ -195,6 +231,15 @@
     border-radius: 999px;
     min-height: 40px;
     font-size: 0.9rem;
+  }
+  .jump {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .tool {
     display: flex;
