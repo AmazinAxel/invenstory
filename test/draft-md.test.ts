@@ -47,3 +47,15 @@ describe('safe markdown', () => {
     expect(inline('reorder_point and unit_cost')).toEqual([{ t: 'text', v: 'reorder_point and unit_cost' }]);
   });
 });
+
+import { humanType, parseIdeas } from '../src/lib/suggest.ts';
+describe('suggestions', () => {
+  test('credential type names read naturally', () => {
+    expect(humanType('googleSheetsOAuth2Api')).toBe('Google Sheets');
+    expect(humanType('shopifyAccessTokenApi')).toBe('Shopify Access Token');
+  });
+  test('ideas parse from JSON or lists', () => {
+    expect(parseIdeas('Here: ["Sync Shopify stock hourly", "Flag low stock items"]')).toEqual(['Sync Shopify stock hourly', 'Flag low stock items']);
+    expect(parseIdeas('1. Import sales from Sheets daily\n- Update prices weekly please')).toEqual(['Import sales from Sheets daily', 'Update prices weekly please']);
+  });
+});

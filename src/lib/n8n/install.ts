@@ -238,9 +238,12 @@ export async function listCredentials(mcp: McpLike): Promise<CredentialInfo[]> {
 }
 
 /** Credentials Invenstory can run analysis with, best choice first. */
-export async function analysisCredentials(mcp: McpLike): Promise<(CredentialInfo & { choice: ModelChoice })[]> {
-  const creds = await listCredentials(mcp);
+export function analysisChoices(creds: CredentialInfo[]): (CredentialInfo & { choice: ModelChoice })[] {
   return MODEL_CHOICES.flatMap((choice) => creds.filter((c) => c.type === choice.credentialType).map((c) => ({ ...c, choice })));
+}
+
+export async function analysisCredentials(mcp: McpLike): Promise<(CredentialInfo & { choice: ModelChoice })[]> {
+  return analysisChoices(await listCredentials(mcp));
 }
 
 export async function setupAnalysis(
