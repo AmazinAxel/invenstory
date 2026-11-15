@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- The Notifications and Settings card is gone from the Automations tab, so "Change language model" and "Disconnect
+  n8n" are no longer reachable once setup is done (the Setup view still has them while setup is open). Why: the owner decided
+  these controls don't belong in daily use; notifications are now asked for once on the Dashboard (#13) and changed
+  in the browser's site settings. To switch model or disconnect today, clear the site's data.
 - Chat keeps following a streaming reply on phones: it no longer stops after a few chunks and shows "Jump to latest" by
   itself. Only the reader scrolling up pauses it. Why: iOS Safari delivers scroll events a frame late and overshoots
   `scrollIntoView`, which the old at-the-bottom check mistook for the reader leaving (incident 9).

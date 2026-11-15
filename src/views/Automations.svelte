@@ -8,7 +8,6 @@
   import { humanType } from '../lib/suggest.ts';
   import { ago } from '../lib/format.ts';
   import Icon from '../ui/Icon.svelte';
-  import Settings from '../ui/Settings.svelte';
 
   let { onchat, active }: { onchat: () => void; active: boolean } = $props();
   // Shell keeps every tab mounted; wait for the first visit so app start spends no n8n MCP calls (rate-limited) or LLM calls here.
@@ -212,8 +211,6 @@
       </ul>
     {/if}
   </section>
-
-  <Settings />
 </div>
 
 <style>
