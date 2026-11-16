@@ -61,7 +61,7 @@
     border: 0;
     background: transparent;
     min-height: 40px;
-    padding: 9px 8px;
+    padding: 8px;
     line-height: 1.35;
   }
   textarea:focus {
@@ -77,7 +77,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 8px;
     flex: none;
   }
 </style>

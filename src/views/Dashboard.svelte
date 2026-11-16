@@ -26,6 +26,7 @@
   type Invest = { sku: string; name: string; reason: string };
   let stockAlerts = $state<StockAlerts>({ loading: true, error: '', items: [] });
   const periods: Period[] = ['7d', '30d', '90d'];
+  const span: Record<string, string> = { '7d': '7 days', '30d': '30 days', '90d': '90 days' };
 </script>
 
 <div class="dashboard">
@@ -82,7 +83,7 @@
           {/each}
         </ul>
       {:else}
-        <p class="muted small">Nothing to do right now.</p>
+        <p class="muted small">Nothing to do right now</p>
       {/if}
     </section>
 
@@ -97,8 +98,8 @@
       </div></div>
     <div class="insights-grid">
     <section class="kpis" aria-label="Key figures">
-      <Kpi label="Revenue" value={money(s.kpis.revenue, cur)} hint="last {s.period}" />
-      <Kpi label="Units sold" value={count(s.kpis.units_sold)} hint="last {s.period}" />
+      <Kpi label="Revenue" value={money(s.kpis.revenue, cur)} hint="Last {span[s.period] ?? s.period}" />
+      <Kpi label="Units sold" value={count(s.kpis.units_sold)} hint="Last {span[s.period] ?? s.period}" />
       <Kpi label="Stock value" value={money(s.kpis.stock_value, cur)} hint="{count(s.kpis.products)} products" />
 
     </section>
@@ -120,7 +121,7 @@
           <button class="link" onclick={onchat}>Ask a follow-up</button>
         </div>
       {:else if s.config.analysis}
-        <p class="muted small">Insights appear after the next analysis.</p>
+        <p class="muted small">Insights appear after the next analysis</p>
       {:else}
         <p class="muted small">Add an LLM credential in n8n to get insights. See Automations.</p>
       {/if}

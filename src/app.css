@@ -11,6 +11,7 @@
   --warn: #b54708;
   --ok: #067647;
   --radius: 12px;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
   --gap: 16px;
   color-scheme: light dark;
   font: 16px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -130,7 +131,7 @@ textarea {
   background: var(--bg);
   border: 1px solid var(--control-line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   min-height: 44px;
   width: 100%;
 }
@@ -162,7 +163,7 @@ button.primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 ::placeholder {

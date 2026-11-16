@@ -60,7 +60,7 @@
     {/each}
   </ul>
 {:else}
-  <p class="muted small">No workflow runs yet.</p>
+  <p class="muted small">No workflow runs yet</p>
 {/if}
 
 <style>

@@ -277,8 +277,8 @@
   .list li {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 0;
+    gap: 12px;
+    padding: 12px 0;
     border-bottom: 1px solid var(--line);
   }
   .list li:last-child {
@@ -294,8 +294,8 @@
     text-overflow: ellipsis;
   }
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     border: 2px solid var(--muted);
     flex: none;

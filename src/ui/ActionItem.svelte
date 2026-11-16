@@ -43,7 +43,7 @@
 <style>
   .item {
     display: grid;
-    gap: 10px;
+    gap: 12px;
     padding: 12px 0;
     border-bottom: 1px solid var(--line);
   }
@@ -63,7 +63,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
   }
   .ghost {
     width: 44px;
