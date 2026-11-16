@@ -1,6 +1,19 @@
 # Changelog
 
 ## Unreleased
+- **UI polish pass (unslop), re-applied onto the redesigned dashboard:** CSS and copy only, no logic, tokens or
+  data flow touched.
+  - Weights 600/650 became 500 where a figure carries the hierarchy (KPI figure, primary button, active tab, stock
+    quantity, status chips); hierarchy comes from size and colour.
+  - Off-scale spacing values moved onto the 4px scale (10/14/9/6/3/1 px became 8/12/16/4/2): list rows 12, list
+    gaps 12, input 8/12, chat bubble 12/16, chart gaps 12.
+  - KPI hints say "Last 30 days" instead of "last 30d". Trailing periods removed from one-phrase captions.
+  - Re-applied to what the dashboard redesign introduced: `StockOverview` takes the 12px row gap and the 500
+    quantity weight. `SalesHeatmap` takes nothing on purpose: its blue/yellow/red encodes change, so the accent
+    teal would destroy the meaning, and its tile labels keep their weight so they stay legible on the fills.
+  - Dropped with the components this redesign replaced: `StockList.svelte` and `TopSellers.svelte` no longer exist,
+    so the SKU-mono treatment and the teal bar series have no target. No stock row shows a SKU any more.
+  - Not changed on purpose: palette, layout, navigation, hover states, chart structure, the new desktop sidebar.
 - Analysis sets itself up. With an OpenRouter login, `invenstory-analyze` is installed automatically and calls
   OpenRouter straight from n8n with the owner's key, on a small fixed model (`anthropic/claude-haiku-5.5`; change it or
   "Set up again" under Automations → Analysis → "How analysis is connected"). Insights and the "new action items"

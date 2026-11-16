@@ -246,7 +246,7 @@
   }
   .log {
     display: grid;
-    gap: 10px;
+    gap: 12px;
     padding-bottom: 88px;
   }
   .log.voiced {
@@ -254,7 +254,7 @@
   }
   .bubble {
     max-width: 88%;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border-radius: 16px;
     overflow-wrap: anywhere;
   }
@@ -291,7 +291,7 @@
     gap: 8px;
   }
   .chip {
-    border-radius: 999px;
+    border-radius: 8px;
     min-height: 40px;
     font-size: 0.9rem;
   }

@@ -95,7 +95,7 @@
   .trend {
     position: relative;
     margin: 0;
-    --series: #0d9488;
+    --series: var(--accent);
   }
   @media (prefers-color-scheme: dark) {
     .trend {
@@ -153,7 +153,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 0.8rem;
     display: grid;
     pointer-events: none;

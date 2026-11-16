@@ -18,7 +18,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 12px 14px;
+    padding: 12px 16px;
     display: grid;
     gap: 2px;
     min-width: 0;
@@ -29,11 +29,11 @@
   }
   .value {
     font-size: 1.35rem;
-    font-weight: 650;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -128,7 +128,7 @@
   .scroll { min-width: 0; }
   .scroll:focus-visible { outline: 2px solid #a9544c; outline-offset: 4px; }
   .stock-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
-  .product { display: grid; grid-template-columns: minmax(72px, 0.8fr) minmax(48px, 2fr) 4ch 34px; align-items: center; gap: 10px; }
+  .product { display: grid; grid-template-columns: minmax(72px, 0.8fr) minmax(48px, 2fr) 4ch 34px; align-items: center; gap: 12px; }
   .product-name { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
   .track { position: relative; height: 30px; border: 1px solid #403b34; border-radius: 5px 6px 4px 5px; overflow: hidden; background: #f7f1e7; box-shadow: inset 0 -3px 4px #70604b16, 0 1px 1px #57443114; }
   .track::before { content: ''; position: absolute; inset: 3px 4px; border-left: 1px solid #51483c55; border-right: 1px solid #51483c55; border-radius: 3px; pointer-events: none; z-index: 1; }
@@ -136,7 +136,7 @@
   .track.empty-alert { background: #f3d9d2; }
   .bar-fill { display: block; height: 100%; background: #eee8dc; }
   .bar-fill.low { background: #f1c8bb; }
-  .quantity { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+  .quantity { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
   .status-slot { min-width: 0; }
   .pill { display: inline-block; background: #f1d3c6; color: #8f3028; border-radius: 12px; padding: 2px 6px; font-size: 12px; line-height: 1.4; white-space: nowrap; }
   .pill.out { background: #e9b7a9; }

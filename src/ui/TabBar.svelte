@@ -52,7 +52,7 @@
   }
   button[aria-current='page'] {
     color: var(--accent);
-    font-weight: 600;
+    font-weight: 500;
   }
   .ic {
     position: relative;
